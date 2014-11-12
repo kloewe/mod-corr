@@ -4,8 +4,7 @@
 # Author  : Christian Borgelt
 #-----------------------------------------------------------------------
 SHELL       = /bin/bash
-CPUINFODIR  = ../../cpuinfo/cpuinfo/src
-BINARIZEDIR = ../../binarize/binarize/src
+CPUINFODIR  = ../../cpuinfo/src
 
 CC       = gcc -std=c99 -march=native
 # CC       = gcc -std=c99 -mavx
@@ -13,25 +12,25 @@ CFBASE   = -Wall -Wextra -Wno-unused-parameter -Wconversion \
            -pedantic $(ADDFLAGS)
 CFLAGS   = $(CFBASE) -DNDEBUG -O3
 # CFLAGS   = $(CFBASE) -g
-INCS     = -I$(CPUINFODIR) -I$(BINARIZEDIR)
+INCS     = -I$(CPUINFODIR)
 
 LD       = gcc
 LDFLAGS  =
 LIBS     = -lm -lrt -lpthread
 
-HDRS     = $(BINARIZEDIR)/binarize.h $(CPUINFODIR)/cpuinfo.h
-OBJS     = $(BINARIZEDIR)/binarize.o $(CPUINFODIR)/cpuinfo.o
-PRGS     = pcc tetracc
+HDRS     = binarize.h $(CPUINFODIR)/cpuinfo.h
+OBJS     = binarize.o $(CPUINFODIR)/cpuinfo.o
+PRGS     = ../bin/pcc ../bin/tetracc
 
 #-----------------------------------------------------------------------
 # Build Programs
 #-----------------------------------------------------------------------
 all:        $(PRGS)
 
-pcc:        $(OBJS) pcc.o makefile
+../bin/pcc:        $(OBJS) pcc.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) pcc.o     $(LIBS) -o $@
 
-tetracc:    $(OBJS) tetracc.o makefile
+../bin/tetracc:    $(OBJS) tetracc.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) tetracc.o $(LIBS) -o $@
 
 #-----------------------------------------------------------------------
@@ -50,20 +49,22 @@ tetracc.o:  tetracc.c tetracc.h makefile
 #-----------------------------------------------------------------------
 binarize.o: $(HDRS)
 binarize.o: binarize.c makefile
-	$(CC) $(CFLAGS) $(INCS) -c binarize.c -o $@
+	$(CC) $(CFLAGS) -c binarize.c -o $@
 
-cpuinfo.o:  $(HDRS)
-cpuinfo.o:  cpuinfo.c makefile
-	$(CC) $(CFLAGS) $(INCS) -c cpuinfo.c -o $@
+#-----------------------------------------------------------------------
+# External Modules
+#-----------------------------------------------------------------------
+$(CPUINFODIR)/cpuinfo.o:
+	cd $(CPUINFODIR); $(MAKE) cpuinfo.o
 
 #-----------------------------------------------------------------------
 # Source Distribution Packages
 #-----------------------------------------------------------------------
 dist:
 	$(MAKE) clean
-	cd ../..; rm -f pcc.zip pcc.tar.gz; \
-        zip -rq pcc.zip    pcc/{src,ex,doc}; \
-        tar cfz pcc.tar.gz pcc/{src,ex,doc}
+	cd ../..; rm -f corr.zip corr.tar.gz; \
+        zip -rq corr.zip    corr/{src,doc} cpuinfo/{src,doc}; \
+        tar cfz corr.tar.gz corr/{src,doc} cpuinfo/{src,doc}
 
 #-----------------------------------------------------------------------
 # Installation
@@ -75,7 +76,8 @@ install:
 # Clean up
 #-----------------------------------------------------------------------
 localclean:
-	rm -f *.o *~ *.flc core $(PRGS)
+	rm -f *.o *~ $(PRGS)
 
 clean:
 	$(MAKE) localclean
+	cd $(CPUINFODIR); $(MAKE) clean

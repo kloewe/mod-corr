@@ -88,12 +88,12 @@
 /*----------------------------------------------------------------------
   Functions
 ----------------------------------------------------------------------*/
-extern int SFXNAME(tetracc)  (REAL *data, REAL *res, int N, int T);
-extern int SFXNAME(tetraccx) (REAL *data, REAL *res, int N, int T,
-                              int var, ...);
+extern int   SFXNAME(tetracc)   (REAL *data, REAL *res, int N, int T);
+extern int   SFXNAME(tetraccx)  (REAL *data, REAL *res, int N, int T,
+                                 int var, ...);
 
 extern REAL* SFXNAME(make_cmap) (int T);
-extern void init_popcnt (void);
+extern void  init_popcnt        (void);
 
 /*----------------------------------------------------------------------
   Variables
@@ -129,6 +129,7 @@ inline int pcand_lut16 (uint32_t *a, uint32_t *b, int n)
 
 /*--------------------------------------------------------------------*/
 #if defined __POPCNT__ && defined __SSE4_1__
+
 inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
 {                               /* --- pop. count of conjunction */
   int k;                        /* loop variable */
@@ -147,7 +148,7 @@ inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
 /*----------------------------------------------------------------------
   Recursion Handling
 ----------------------------------------------------------------------*/
-#if _TCC_PASS == 1              /* if if in first of two passes */
+#if _TCC_PASS == 1              /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
 #include "tetracc.h"            /* process header recursively */

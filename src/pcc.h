@@ -182,7 +182,7 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
 /*----------------------------------------------------------------------
   Recursion Handling
 ----------------------------------------------------------------------*/
-#if _PCC_PASS == 1              /* if in first of two passes */
+#if   _PCC_PASS == 1            /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
 #include "pcc.h"                /* process header recursively */

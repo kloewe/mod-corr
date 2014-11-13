@@ -212,24 +212,6 @@ REAL* SFXNAME(make_cmap) (int T)
 /*----------------------------------------------------------------------
   Main Functions
 ----------------------------------------------------------------------*/
-// #ifndef PCAND_LUT16             /* if not defined yet */
-// #define PCAND_LUT16             /* define array bit counting function */
-// 
-// static inline int pcand_lut16 (uint32_t *a, uint32_t *b, int n)
-// {                               /* --- pop. count of conjunction */
-//   int k, s;                     /* loop variable, population count */
-// 
-//   assert(a && b && (n > 0));    /* check the function arguments */
-//   for (k = s = 0; k < n; k++) { /* traverse the two series and */
-//     uint32_t x = a[k] & b[k];   /* compute elementwise conjunction */
-//     s += (int)popcnt[x & 0xffff] +(int)popcnt[x >> 16];
-//   }                             /* count set bits in the conjunction */
-//   return s;                     /* return the population count */
-// }  /* pcand_lut16() */
-// 
-// #endif  /* #ifndef PCAND_LUT16 */
-/*--------------------------------------------------------------------*/
-
 int SFXNAME(tcc_lut16) (uint32_t *bits, REAL *res, int N, int T)
 {                               /* --- lookup table to count bits */
   int  i, j;                    /* loop variables */
@@ -1210,25 +1192,6 @@ static WORKERDEF(wrk_pop64_tiled, p)
 #endif  /* #ifdef __POPCNT__ */
 /*--------------------------------------------------------------------*/
 #if defined __POPCNT__ && defined __SSE4_1__
-// #ifndef PCAND_M128I             /* if not defined yet */
-// #define PCAND_M128I             /* define array bit counting function */
-// 
-// static inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
-// {                               /* --- pop. count of conjunction */
-//   int k;                        /* loop variable */
-//   int s = 0;                    /* sum of population counts */
-// 
-//   for (k = 0; k < n; k += 4) {  /* traverse the binarized data */
-//     __m128i x = _mm_and_si128(_mm_load_si128((__m128i*)(a+k)),
-//                               _mm_load_si128((__m128i*)(b+k)));
-//     s += (int)_mm_popcnt_u64((uint64_t)_mm_extract_epi64(x, 0))
-//       +  (int)_mm_popcnt_u64((uint64_t)_mm_extract_epi64(x, 1));
-//   }                             /* count set bits in the conjunction */
-//   return s;                     /* and return this number */
-// }  /* pcand_m128i() */
-// 
-// #endif  /* #ifndef PCAND_M128I */
-/*--------------------------------------------------------------------*/
 
 int SFXNAME(tcc_m128i) (uint32_t *bits, REAL *res, int N, int T)
 {                               /* --- _m128i integers and popcnt64 */

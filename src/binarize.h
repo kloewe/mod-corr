@@ -17,13 +17,13 @@
   Functions
 ----------------------------------------------------------------------*/
 #ifdef REAL
-extern void* binarize    (REAL   *data, int N, int T,
-                          REAL   *thhs, int bpi);
+extern void* binarize     (REAL   *data, int N, int T,
+                           REAL   *thhs, int bpi);
 #else
-extern void* binarizeFlt (float  *data, int N, int T,
-                          float  *thhs, int bpi);
-extern void* binarizeDbl (double *data, int N, int T,
-                          double *thhs, int bpi);
+extern void* binarize_flt (float  *data, int N, int T,
+                           float  *thhs, int bpi);
+extern void* binarize_dbl (double *data, int N, int T,
+                           double *thhs, int bpi);
 #endif
 
 #endif  /* #ifndef __BINARIZE__ */

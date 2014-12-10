@@ -38,12 +38,12 @@
 #  undef  _PCC_PASS             /* ensure _PCC_PASS is undefined */
 #  define _PCC_PASS 1           /* define macro for first pass */
 #  define REAL      float       /* first pass: single precision */
-#  define SUFFIX    Flt         /* function name suffix is 'Flt' */
+#  define SUFFIX    _flt        /* function name suffix is '_flt' */
 #else                           /* if in second pass of two */
 #  undef  _PCC_PASS             /* ensure _PCC_PASS is undefined */
 #  define _PCC_PASS 2           /* define macro for second pass */
 #  define REAL      double      /* second pass: double precision */
-#  define SUFFIX    Dbl         /* function name suffix is 'Dbl' */
+#  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
 #define float  1                /* to check the definition of REAL */
@@ -1343,10 +1343,10 @@ int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
 #undef SUFFIX                   /* of precision selectors */
 #if 1
 #define REAL    float           /* test case: single precision */
-#define SUFFIX  Flt             /* function name suffix is 'Flt' */
+#define SUFFIX  _flt            /* function name suffix is '_flt' */
 #else
 #define REAL    double          /* test case: double precision */
-#define SUFFIX  Dbl             /* function name suffix is 'Dbl' */
+#define SUFFIX  _dbl            /* function name suffix is '_dbl' */
 #endif
 
 /*--------------------------------------------------------------------*/

@@ -4,7 +4,6 @@
   Author  : Kristian Loewe, Christian Borgelt
 ----------------------------------------------------------------------*/
 #ifndef __TETRACC__
-#define __TETRACC__
 
 #ifdef _MSC_VER
 #define uint32_t   unsigned __int32
@@ -42,25 +41,19 @@
 #  undef  _TCC_PASS             /* ensure _TCC_PASS is undefined */
 #  define _TCC_PASS 1           /* define macro for first pass */
 #  define REAL      float       /* first pass: single precision */
-#  define SUFFIX    Flt         /* function name suffix is 'Flt' */
+#  define SUFFIX    _flt        /* function name suffix is '_flt' */
 #else                           /* if in second pass of two */
 #  undef  _TCC_PASS             /* ensure _TCC_PASS is undefined */
 #  define _TCC_PASS 2           /* define macro for second pass */
 #  define REAL      double      /* second pass: double precision */
-#  define SUFFIX    Dbl         /* function name suffix is 'Dbl' */
+#  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
-#define float  1                /* to check the definition of REAL */
-#define double 2
-#if REAL==float                 /* if single precision data */
-#undef  REAL_IS_DOUBLE
-#define REAL_IS_DOUBLE  0       /* clear indicator for double */
-#else                           /* if double precision data */
-#undef  REAL_IS_DOUBLE
-#define REAL_IS_DOUBLE  1       /* set   indicator for double */
-#endif
-#undef float                    /* delete definitions */
-#undef double                   /* used for type checking */
+#ifndef SFXNAME                 /* macros to generate function names */
+#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
+#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
+#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
+#endif                          /* to ensure proper expansion */
 
 /*----------------------------------------------------------------------
   Preprocessor Definitions
@@ -79,14 +72,8 @@
 #define TCC_THREAD   0x20       /* flag for threaded version */
 #endif
 
-#ifndef SFXNAME                 /* macros to generate function names */
-#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
-#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
-#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
-#endif                          /* to ensure proper expansion */
-
 /*----------------------------------------------------------------------
-  Functions
+  Function Prototypes
 ----------------------------------------------------------------------*/
 extern int   SFXNAME(tetracc)   (REAL *data, REAL *res, int N, int T);
 extern int   SFXNAME(tetraccx)  (REAL *data, REAL *res, int N, int T,
@@ -104,16 +91,17 @@ extern unsigned char popcnt[1 << 16];
   Preprocessor Definitions
 ----------------------------------------------------------------------*/
 #if   _TCC_PASS <= 0
-#define tetracc(d,r,N,T)     tetraccx(d,r,N,T,0)
+#define tetracc(d,r,N,T)      tetraccx(d,r,N,T,0)
 #elif _TCC_PASS <= 1
-#define tetraccFlt(d,r,N,T)  tetraccxFlt(d,r,N,T,0)
+#define tetracc_flt(d,r,N,T)  tetraccx_flt(d,r,N,T,0)
 #elif _TCC_PASS <= 2
-#define tetraccDbl(d,r,N,T)  tetraccxDbl(d,r,N,T,0)
+#define tetracc_dbl(d,r,N,T)  tetraccx_dbl(d,r,N,T,0)
 #endif
 
 /*----------------------------------------------------------------------
   Inline Functions
 ----------------------------------------------------------------------*/
+#if _TCC_PASS <= 1              /* if in first of two passes */
 
 inline int pcand_lut16 (uint32_t *a, uint32_t *b, int n)
 {                               /* --- pop. count of conjunction */
@@ -145,10 +133,11 @@ inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
 }  /* pcand_m128i() */
 
 #endif  /* #if defined __POPCNT__ && defined __SSE4_1__ */
+#endif  /* #if _TCC_PASS <= 1 */
 /*----------------------------------------------------------------------
   Recursion Handling
 ----------------------------------------------------------------------*/
-#if _TCC_PASS == 1              /* if in first of two passes */
+#if   _TCC_PASS == 1            /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
 #include "tetracc.h"            /* process header recursively */
@@ -160,7 +149,6 @@ inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
 #undef SFXNAME
 #undef SFXNAME_1
 #undef SFXNAME_2
-#undef REAL_IS_DOUBLE
 
 #undef  _TCC_PASS
 #define __TETRACC__

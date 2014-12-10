@@ -21,8 +21,8 @@
 #include <pthread.h>
 #endif
 
-#include "binarize.h"
 #include "cpuinfo.h"
+#include "binarize.h"
 #include "tetracc.h"
 
 /*----------------------------------------------------------------------
@@ -38,12 +38,12 @@
 #  undef  _TCC_PASS             /* ensure _TCC_PASS is undefined */
 #  define _TCC_PASS 1           /* define macro for first pass */
 #  define REAL      float       /* first pass: single precision */
-#  define SUFFIX    Flt         /* function name suffix is 'Flt' */
+#  define SUFFIX    _flt        /* function name suffix is '_flt' */
 #else                           /* if in second pass of two */
 #  undef  _TCC_PASS             /* ensure _TCC_PASS is undefined */
 #  define _TCC_PASS 2           /* define macro for second pass */
 #  define REAL      double      /* second pass: double precision */
-#  define SUFFIX    Dbl         /* function name suffix is 'Dbl' */
+#  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
 #define float  1                /* to check the definition of REAL */
@@ -1601,10 +1601,10 @@ int SFXNAME(tetraccx) (REAL *data, REAL *res, int N, int T, int var,...)
 #undef SUFFIX                   /* of precision selectors */
 #if 1
 #define REAL    float           /* test case: single precision */
-#define SUFFIX  Flt             /* function name suffix is 'Flt' */
+#define SUFFIX  _flt            /* function name suffix is '_flt' */
 #else
 #define REAL    double          /* test case: double precision */
-#define SUFFIX  Dbl             /* function name suffix is 'Dbl' */
+#define SUFFIX  _dbl            /* function name suffix is '_dbl' */
 #endif
 
 static double timer (void)
@@ -1667,7 +1667,7 @@ int main (int argc, char* argv[])
   memset(res1, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res1, N, T, TCC_LUT16);
+    SFXNAME(tetraccx)(data, res1, N, T, TCC_LUT16);
   printf("lut16      : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   printf("   (%d repetition(s))\n", n);
 
@@ -1675,7 +1675,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_LUT16|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_LUT16|TCC_TILED, 0);
   printf("lut16 tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1683,7 +1683,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_LUT16|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_LUT16|TCC_THREAD, 4);
   printf("lut16 thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1691,7 +1691,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_LUT16|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_LUT16|TCC_TILED|TCC_THREAD, 0, 4);
   printf("lut16 t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1700,7 +1701,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSE2);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSE2);
   printf("sse2       : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1708,7 +1709,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSE2|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSE2|TCC_TILED, 0);
   printf("sse2  tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1716,7 +1717,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSE2|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSE2|TCC_THREAD, 4);
   printf("sse2  thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1724,7 +1725,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSE2|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_SSE2|TCC_TILED|TCC_THREAD, 0, 4);
   printf("sse2  t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 #endif
@@ -1734,7 +1736,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSSE3);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSSE3);
   printf("ssse3      : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1742,7 +1744,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSSE3|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSSE3|TCC_TILED, 0);
   printf("ssse3 tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1750,7 +1752,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSSE3|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_SSSE3|TCC_THREAD, 4);
   printf("ssse3 thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1758,7 +1760,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_SSSE3|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_SSSE3|TCC_TILED|TCC_THREAD, 0, 4);
   printf("ssse3 t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 #endif
@@ -1768,7 +1771,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP32);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP32);
   printf("pop32      : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1776,7 +1779,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP32|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP32|TCC_TILED, 0);
   printf("pop32 tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1784,7 +1787,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP32|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP32|TCC_THREAD, 4);
   printf("pop32 thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1792,7 +1795,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP32|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_POP32|TCC_TILED|TCC_THREAD, 0, 4);
   printf("pop32 t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 #endif
@@ -1802,7 +1806,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP64);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP64);
   printf("pop64      : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1810,7 +1814,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP64|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP64|TCC_TILED, 0);
   printf("pop64 tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1818,7 +1822,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP64|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_POP64|TCC_THREAD, 4);
   printf("pop64 thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1826,7 +1830,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_POP64|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_POP64|TCC_TILED|TCC_THREAD, 0, 4);
   printf("pop64 t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 #endif
@@ -1836,7 +1841,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_M128I);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_M128I);
   printf("m128i      : %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1844,7 +1849,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_M128I|TCC_TILED, 0);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_M128I|TCC_TILED, 0);
   printf("m128i tiled: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1852,7 +1857,7 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_M128I|TCC_THREAD, 4);
+    SFXNAME(tetraccx)(data, res2, N, T, TCC_M128I|TCC_THREAD, 4);
   printf("m128i thd'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 
@@ -1860,7 +1865,8 @@ int main (int argc, char* argv[])
   memset(res2, 0, z *sizeof(float));
   t = timer();
   for (i = 0; i < n; i++)
-    tetraccxFlt(data, res2, N, T, TCC_M128I|TCC_TILED|TCC_THREAD, 0, 4);
+    SFXNAME(tetraccx)(data, res2, N, T,
+                      TCC_M128I|TCC_TILED|TCC_THREAD, 0, 4);
   printf("m128i t&t'd: %7d %7d %8.2f", N, T, (timer()-t)/(double)n);
   check(res1, res2, z);
 #endif

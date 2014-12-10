@@ -33,12 +33,12 @@
 #  undef  _PCC_PASS             /* ensure _PCC_PASS is undefined */
 #  define _PCC_PASS 1           /* define macro for first pass */
 #  define REAL      float       /* first pass: single precision */
-#  define SUFFIX    Flt         /* function name suffix is 'Flt' */
+#  define SUFFIX    _flt        /* function name suffix is '_flt' */
 #else                           /* if in second pass of two */
 #  undef  _PCC_PASS             /* ensure _PCC_PASS is undefined */
 #  define _PCC_PASS 2           /* define macro for second pass */
 #  define REAL      double      /* second pass: double precision */
-#  define SUFFIX    Dbl         /* function name suffix is 'Dbl' */
+#  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
 #define float  1                /* to check the definition of REAL */
@@ -52,6 +52,12 @@
 #endif
 #undef float                    /* delete definitions */
 #undef double                   /* used for type checking */
+
+#ifndef SFXNAME                 /* macros to generate function names */
+#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
+#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
+#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
+#endif                          /* to ensure proper expansion */
 
 /*----------------------------------------------------------------------
   Preprocessor Definitions
@@ -68,14 +74,8 @@
 #define PCC_THREAD   0x40       /* flag for multi-thread version */
 #endif
 
-#ifndef SFXNAME                 /* macros to generate function names */
-#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
-#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
-#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
-#endif                          /* to ensure proper expansion */
-
 /*----------------------------------------------------------------------
-  Functions Prototypes
+  Function Prototypes
 ----------------------------------------------------------------------*/
 extern int  SFXNAME(pcc)  (REAL *data, REAL *res, int N, int T);
 extern int  SFXNAME(pccx) (REAL *data, REAL *res, int N, int T,
@@ -88,16 +88,15 @@ extern void SFXNAME(init_sse2)  (REAL *data, int N, int T,
 extern void SFXNAME(init_avx)   (REAL *data, int N, int T,
                                  REAL *diff, int X, REAL *rssd);
 
-
 /*----------------------------------------------------------------------
   Preprocessor Definitions
 ----------------------------------------------------------------------*/
 #if   _PCC_PASS <= 0
-#define pcc(d,r,N,T)     pccx(d,r,N,T,0)
+#define pcc(d,r,N,T)      pccx(d,r,N,T,0)
 #elif _PCC_PASS <= 1
-#define pccFlt(d,r,N,T)  pccxFlt(d,r,N,T,0)
+#define pcc_flt(d,r,N,T)  pccx_flt(d,r,N,T,0)
 #elif _PCC_PASS <= 2
-#define pccDbl(d,r,N,T)  pccxDbl(d,r,N,T,0)
+#define pcc_dbl(d,r,N,T)  pccx_dbl(d,r,N,T,0)
 #endif
 
 /*----------------------------------------------------------------------
@@ -138,7 +137,7 @@ inline REAL SFXNAME(pair_sse2) (REAL *a, REAL *b, int n)
   #endif
 }  /* pair_sse2() */
 
-#endif
+#endif  /* #ifdef __SSE2__ */
 /*--------------------------------------------------------------------*/
 #ifdef __AVX__
 
@@ -178,7 +177,7 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
   #endif
 }  /* pair_avx() */
 
-#endif
+#endif  /* #ifdef __AVX__ */
 /*----------------------------------------------------------------------
   Recursion Handling
 ----------------------------------------------------------------------*/

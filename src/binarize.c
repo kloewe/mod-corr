@@ -26,7 +26,7 @@
 ----------------------------------------------------------------------*/
 #ifndef REAL                    /* if to compile as float and double */
 #  define REAL    float         /* first pass: single precision */
-#  define SUFFIX  Flt           /* function name suffix is 'Flt' */
+#  define SUFFIX  _flt          /* function name suffix is '_flt' */
 #else                           /* if REAL defined or in second pass, */
 #  ifndef __BINARIZE_2__        /* prevent (further) recursion by */
 #  define __BINARIZE_2__        /* defining indicator for second pass */
@@ -72,7 +72,7 @@ static REAL SFXNAME(ksmall) (REAL *data, size_t n, size_t k, REAL *buf)
     if (n <= 1) return data[0]; /* return the only element or */
     if (k > 0) return (data[0] > data[1]) ? data[0] : data[1];
     else       return (data[0] > data[1]) ? data[1] : data[0];
-  }                             /* return the greater element */
+  }                             /* return the greater/smaller element */
   if (buf != data)              /* copy data to the buffer if needed */
     memcpy(buf, data, n *sizeof(REAL));
   a = 0; b = n-1;               /* indices of first and last element */
@@ -174,6 +174,6 @@ void* SFXNAME(binarize) (REAL *data, int N, int T, REAL *thhs, int bpi)
 #undef REAL
 #undef SUFFIX
 #define REAL    double          /* second pass: double precision */
-#define SUFFIX  Dbl             /* function name suffix is 'Dbl' */
+#define SUFFIX  _dbl            /* function name suffix is '_dbl' */
 #include "binarize.c"           /* process source recursively */
 #endif

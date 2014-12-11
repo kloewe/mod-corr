@@ -23,6 +23,7 @@
 #endif
 
 #include "cpuinfo.h"
+#include "clamp.h"
 #include "pcc.h"
 
 /*----------------------------------------------------------------------
@@ -58,6 +59,12 @@
 #undef float                    /* delete definitions */
 #undef double                   /* used for type checking */
 
+#ifndef SFXNAME                 /* macros to generate function names */
+#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
+#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
+#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
+#endif                          /* to ensure proper expansion */
+
 /*----------------------------------------------------------------------
   Processing Options
 ----------------------------------------------------------------------*/
@@ -67,6 +74,7 @@
                                 /* default: index computation */
 #define USERTHD     0           /* copy user flag for threading */
                                 /* default: choose automatically */
+#define clamp       clamp1      /* choose clamping implementation */
 
 /*----------------------------------------------------------------------
   Preprocessor Definitions
@@ -74,12 +82,6 @@
 #ifndef M_PI                    /* if not defined (no Posix source) */
 #define M_PI            3.14159265358979323846
 #endif                          /* pi in double precision */
-
-#ifndef SFXNAME                 /* macros to generate function names */
-#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
-#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
-#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
-#endif                          /* to ensure proper expansion */
 
 #ifndef DELROWS                 /* if not yet defined */
 #if ROWS                        /* if to use an array of row starts */
@@ -208,7 +210,7 @@ static int SFXNAME(pcc_naive) (REAL *diff, REAL *rssd, REAL *res,
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
       sum = SFXNAME(pair_naive)(diff+i*X, diff+j*X, T);
-      *res++ = sum /(rssd[i] *rssd[j]);
+      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
     }                           /* compute correlation coefficient */
   }                             /* (Pearson's r) */
   return 0;                     /* return 'ok' */
@@ -242,10 +244,11 @@ static int SFXNAME(pcc_naive_tiled) (REAL *diff, REAL *rssd, REAL *res,
     #endif                      /* traverse the pair of series */
         sum = SFXNAME(pair_naive)(diff+i*X, diff+j*X, T);
         #if ROWS                /* if row starts are available */
-        rows[i][j]        = sum /(rssd[i] *rssd[j]);
+        rows[i][j]
         #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = sum /(rssd[i] *rssd[j]);
+        res[INDEX(i,j,N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }                             /* with a linear index */
@@ -285,10 +288,11 @@ static void SFXNAME(rct_naive) (SFXNAME(WORK) *w,
       for (j = ca; j < cb; j++){/* traverse the columns */
         sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -321,10 +325,11 @@ static void SFXNAME(trg_naive) (SFXNAME(WORK) *w, int a, int b)
       #endif                    /* traverse the pair of series */
         sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -348,10 +353,11 @@ static WORKERDEF(wrk_naive, p)
       #endif                    /* traverse column indices */
         sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) */
     }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -384,10 +390,11 @@ static WORKERDEF(wrk_naive_tiled, p)
       #endif                    /* traverse the pair of series */
           sum = SFXNAME(pair_naive)(w->diff+i*w->X,w->diff+j*w->X,w->T);
           #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+          w->rows[i][j]
           #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+          w->res[INDEX(i,j,w->N)]
           #endif                /* compute correlation coefficient */
+            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
         }                       /* (Pearson's r) and */
       }                         /* store it in the result */
     }                           /* with a linear index */
@@ -519,7 +526,7 @@ static int SFXNAME(pcc_sse2) (REAL *diff, REAL *rssd, REAL *res,
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
       sum = SFXNAME(pair_sse2)(diff+i*X, diff+j*X, T);
-      *res++ = sum /(rssd[i] *rssd[j]);
+      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
     }                           /* sum the values of the sum and */
   }                             /* compute correlation coefficient */
   return 0;                     /* return 'ok' */
@@ -553,10 +560,11 @@ static int SFXNAME(pcc_sse2_tiled) (REAL *diff, REAL *rssd, REAL *res,
     #endif                      /* traverse the pair of series */
         sum = SFXNAME(pair_sse2)(diff+i*X, diff+j*X, T);
         #if ROWS                /* if row starts are available */
-        rows[i][j]        = sum /(rssd[i] *rssd[j]);
+        rows[i][j]
         #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = sum /(rssd[i] *rssd[j]);
+        res[INDEX(i,j,N)]
         #endif
+          = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
       }                         /* sum the four values of the sum and */
     }                           /* compute correlation coefficient */
   }
@@ -596,10 +604,11 @@ static void SFXNAME(rct_sse2) (SFXNAME(WORK) *w,
       for (j = ca; j < cb; j++){/* traverse the columns */
         sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -632,10 +641,11 @@ static void SFXNAME(trg_sse2) (SFXNAME(WORK) *w, int a, int b)
       #endif                    /* traverse the pair of series */
         sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -659,10 +669,11 @@ static WORKERDEF(wrk_sse2, p)
       #endif                    /* traverse the row indices */
         sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -695,10 +706,11 @@ static WORKERDEF(wrk_sse2_tiled, p)
       #endif
           sum = SFXNAME(pair_sse2)(w->diff+i*w->X,w->diff+j*w->X, w->T);
           #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+          w->rows[i][j]
           #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+          w->res[INDEX(i,j,w->N)]
           #endif
+            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
         }                       /* compute correlation coefficient */
       }                         /* (Pearson's r) */
     }
@@ -841,7 +853,7 @@ static int SFXNAME(pcc_avx) (REAL *diff, REAL *rssd, REAL *res,
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
       sum = SFXNAME(pair_avx)(diff+i*X, diff+j*X, T);
-      *res++ = sum /(rssd[i] *rssd[j]);
+      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
     }                           /* sum the values of the sum and */
   }                             /* compute correlation coefficient */
   return 0;                     /* return 'ok' */
@@ -875,10 +887,11 @@ static int SFXNAME(pcc_avx_tiled) (REAL *diff, REAL *rssd, REAL *res,
     #endif                      /* traverse the pair of series */
         sum = SFXNAME(pair_avx)(diff+i*X, diff+j*X, T);
         #if ROWS                /* if row starts are available */
-        rows[i][j]        = sum /(rssd[i] *rssd[j]);
+        rows[i][j]
         #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = sum /(rssd[i] *rssd[j]);
+        res[INDEX(i,j,N)]
         #endif
+          = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
       }                         /* sum the four values of the sum and */
     }                           /* compute correlation coefficient */
   }
@@ -918,10 +931,11 @@ static void SFXNAME(rct_avx) (SFXNAME(WORK) *w,
       for (j = ca; j < cb; j++){/* traverse the columns */
         sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -954,10 +968,11 @@ static void SFXNAME(trg_avx) (SFXNAME(WORK) *w, int a, int b)
       #endif                    /* traverse the pair of series */
         sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
   }
@@ -981,10 +996,11 @@ static WORKERDEF(wrk_avx, p)
       #endif                    /* traverse the row indices */
         sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
         #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+        w->rows[i][j]
         #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+        w->res[INDEX(i,j,w->N)]
         #endif                  /* compute correlation coefficient */
+          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
       }                         /* (Pearson's r) and */
     }                           /* store it in the result */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -1017,10 +1033,11 @@ static WORKERDEF(wrk_avx_tiled, p)
       #endif
           sum = SFXNAME(pair_avx)(w->diff+i*w->X,w->diff+j*w->X, w->T);
           #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = sum /(w->rssd[i] *w->rssd[j]);
+          w->rows[i][j]
           #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = sum /(w->rssd[i] *w->rssd[j]);
+          w->res[INDEX(i,j,w->N)]
           #endif
+            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
         }                       /* compute correlation coefficient */
       }                         /* (Pearson's r) */
     }
@@ -1327,12 +1344,13 @@ int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
   return r;                     /* return the error status */
 }  /* pccx() */
 
-/*--------------------------------------------------------------------*/
-
+/*----------------------------------------------------------------------
+  Recursion Handling
+----------------------------------------------------------------------*/
 #if _PCC_PASS == 1              /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
-#include "pcc.c"                /* process header recursively */
+#include "pcc.c"                /* process file recursively */
 #endif
 
 /*----------------------------------------------------------------------

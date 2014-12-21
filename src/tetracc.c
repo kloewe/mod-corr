@@ -46,17 +46,29 @@
 #  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
+/*--------------------------------------------------------------------*/
 #define float  1                /* to check the definition of REAL */
 #define double 2
-#if REAL==float                 /* if single precision data */
+
+#if   REAL==float               /* if single precision data */
 #undef  REAL_IS_DOUBLE
 #define REAL_IS_DOUBLE  0       /* clear indicator for double */
-#else                           /* if double precision data */
+#elif REAL==double              /* if double precision data */
 #undef  REAL_IS_DOUBLE
 #define REAL_IS_DOUBLE  1       /* set   indicator for double */
+#else
+#error "REAL must be either 'float' or 'double'"
 #endif
+
 #undef float                    /* delete definitions */
 #undef double                   /* used for type checking */
+/*--------------------------------------------------------------------*/
+
+#ifndef SFXNAME                 /* macros to generate function names */
+#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
+#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
+#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
+#endif                          /* to ensure proper expansion */
 
 /*----------------------------------------------------------------------
   Processing Options
@@ -77,12 +89,6 @@
 #define M_PI            3.14159265358979323846
 #endif                          /* pi in double precision */
 
-#ifndef SFXNAME                 /* macros to generate function names */
-#define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
-#define SFXNAME_1(n,s)  SFXNAME_2(n,s)
-#define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
-#endif                          /* to ensure proper expansion */
-
 #ifndef DELROWS                 /* if not yet defined */
 #if ROWS                        /* if to use an array of row starts */
 #define DELROWS         free(rows)
@@ -99,6 +105,12 @@
                         -(size_t)(i)-3)/2-1+(size_t)(j))
 #endif                          /* index computation for result */
 #endif
+
+#if ROWS                        /* if row starts are available */
+#define RESULT(i,j,N)   rows[i][j]
+#else                           /* if to use index computation */
+#define RESULT(i,j,N)   res[INDEX(i,j,N)]
+#endif                          /* unify left value for result */
 
 #ifndef GET_THREAD              /* if not yet defined */
 #if USERTHD                     /* if to respect user flag */
@@ -212,6 +224,7 @@ REAL* SFXNAME(make_cmap) (int T)
 /*----------------------------------------------------------------------
   Main Functions
 ----------------------------------------------------------------------*/
+
 int SFXNAME(tcc_lut16) (uint32_t *bits, REAL *res, int N, int T)
 {                               /* --- lookup table to count bits */
   int  i, j;                    /* loop variables */
@@ -259,13 +272,9 @@ static WORKERDEF(wrk_lut16, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_lut16(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -309,11 +318,7 @@ int SFXNAME(tcc_lut16_tiled) (uint32_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_lut16(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -345,14 +350,10 @@ static WORKERDEF(wrk_lut16_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_lut16(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -537,13 +538,9 @@ static WORKERDEF(wrk_sse2, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_sse2(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -586,11 +583,7 @@ int SFXNAME(tcc_sse2_tiled) (uint32_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_sse2(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -622,14 +615,10 @@ static WORKERDEF(wrk_sse2_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_sse2(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -753,13 +742,9 @@ static WORKERDEF(wrk_ssse3, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_ssse3(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -802,11 +787,7 @@ int SFXNAME(tcc_ssse3_tiled) (uint32_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_ssse3(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -838,14 +819,10 @@ static WORKERDEF(wrk_ssse3_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_ssse3(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -920,13 +897,9 @@ static WORKERDEF(wrk_pop32, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_pop32(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -969,11 +942,7 @@ int SFXNAME(tcc_pop32_tiled) (uint32_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_pop32(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -1005,14 +974,10 @@ static WORKERDEF(wrk_pop32_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_pop32(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -1087,13 +1052,9 @@ static WORKERDEF(wrk_pop64, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_pop64(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -1136,11 +1097,7 @@ int SFXNAME(tcc_pop64_tiled) (uint64_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_pop64(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -1172,14 +1129,10 @@ static WORKERDEF(wrk_pop64_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_pop64(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -1239,13 +1192,9 @@ static WORKERDEF(wrk_m128i, p)
       for (j = i+1; j < w->N; j++) {
       #endif                    /* count set bits in the conjunction */
         s = pcand_m128i(bits+i*w->X, bits+j*w->X, w->X);
-        #if ROWS                /* if row starts are available */
-        w->rows[i][j]           = w->cmap[s];
-        #else                   /* if to use index computation */
-        w->res[INDEX(i,j,w->N)] = w->cmap[s];
-        #endif                  /* map the resulting n_11 value */
-      }                         /* with the tabulated cosine function */
-    }                           /* to the correlation coefficient */
+        w->RESULT(i,j,w->N) = w->cmap[s];
+      }                         /* map the resulting n_11 value */
+    }                           /* with the tabulated cosine function */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */
@@ -1288,11 +1237,7 @@ int SFXNAME(tcc_m128i_tiled) (uint32_t *bits, REAL *res,
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* count set bits in the conjunction */
         s = pcand_m128i(bits+i*X, bits+j*X, X);
-        #if ROWS                /* if row starts are available */
-        rows[i][j]        = cmap[s];
-        #else                   /* if to use index computation */
-        res[INDEX(i,j,N)] = cmap[s];
-        #endif
+        RESULT(i,j,N) = cmap[s];
       }                         /* map the resulting n_11 value */
     }                           /* with the tabulated cosine function */
   }                             /* to the correlation coefficient */
@@ -1324,14 +1269,10 @@ static WORKERDEF(wrk_m128i_tiled, p)
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* count set bits in the conjunction */
           s = pcand_m128i(bits+i*w->X, bits+j*w->X, w->X);
-          #if ROWS              /* if row starts are available */
-          w->rows[i][j]           = w->cmap[s];
-          #else                 /* if to use index computation */
-          w->res[INDEX(i,j,w->N)] = w->cmap[s];
-          #endif                /* compute correlation coefficient */
-        }                       /* (Pearson's r) and */
-      }                         /* store it in the result */
-    }                           /* with a linear index */
+          w->RESULT(i,j,w->N) = w->cmap[s];
+        }                       /* compute correlation coefficient */
+      }                         /* (Pearson's r) and store it */
+    }
     if (w->s > w->N/2) break;   /* if second strip done, abort */
     i    = w->N -w->e;          /* get start of opposite stripe */
     if (w->e > i)      break;   /* if no opposite strip, abort */

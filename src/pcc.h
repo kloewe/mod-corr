@@ -41,17 +41,23 @@
 #  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
+/*--------------------------------------------------------------------*/
 #define float  1                /* to check the definition of REAL */
 #define double 2
-#if REAL==float                 /* if single precision data */
+
+#if   REAL==float               /* if single precision data */
 #undef  REAL_IS_DOUBLE
 #define REAL_IS_DOUBLE  0       /* clear indicator for double */
-#else                           /* if double precision data */
+#elif REAL==double              /* if double precision data */
 #undef  REAL_IS_DOUBLE
 #define REAL_IS_DOUBLE  1       /* set   indicator for double */
+#else
+#error "REAL must be either 'float' or 'double'"
 #endif
+
 #undef float                    /* delete definitions */
 #undef double                   /* used for type checking */
+/*--------------------------------------------------------------------*/
 
 #ifndef SFXNAME                 /* macros to generate function names */
 #define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
@@ -106,10 +112,10 @@ extern void SFXNAME(init_avx)   (REAL *data, int N, int T,
 inline REAL SFXNAME(pair_naive) (REAL *a, REAL *b, int n)
 {                               /* --- process a pair of series */
   int  k;                       /* loop variable */
-  REAL sum;                     /* sum of products */
+  REAL sum = 0;                 /* sum of products */
 
-  for (sum = 0, k = 0; k < n; k++)
-    sum += a[k] *b[k];          /* sum pairwise products */
+  for (k = 0; k < n; k++)       /* traverse the vector elements */
+    sum += a[k] *b[k];          /* and sum the pairwise products */
   return sum;                   /* return the computed sum */
 }  /* pair_naive() */
 
@@ -184,7 +190,7 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
 #if   _PCC_PASS == 1            /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
-#include "pcc.h"                /* process header recursively */
+#include "pcc.h"                /* process file recursively */
 #elif _PCC_PASS == 2
 #undef REAL
 #endif

@@ -27,10 +27,10 @@ PRGS     = ../bin/pcc ../bin/tetracc
 #-----------------------------------------------------------------------
 all:        $(PRGS)
 
-../bin/pcc:        $(OBJS) pcc.o makefile
+../bin/pcc:         $(OBJS) pcc.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) pcc.o     $(LIBS) -o $@
 
-../bin/tetracc:    $(OBJS) tetracc.o makefile
+../bin/tetracc:     $(OBJS) tetracc.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) tetracc.o $(LIBS) -o $@
 
 #-----------------------------------------------------------------------
@@ -38,7 +38,7 @@ all:        $(PRGS)
 #-----------------------------------------------------------------------
 pcc.o:      pcc.h $(HDRS)
 pcc.o:      pcc.c makefile
-	$(CC) $(CFLAGS) $(INCS) -DPCC_MAIN -c pcc.c     -o $@
+	$(CC) $(CFLAGS) -funroll-loops $(INCS) -DPCC_MAIN -c pcc.c -o $@
 
 tetracc.o:  tetracc.h $(HDRS)
 tetracc.o:  tetracc.c tetracc.h makefile

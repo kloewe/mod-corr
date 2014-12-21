@@ -49,6 +49,8 @@
 #  define SUFFIX    _dbl        /* function name suffix is '_dbl' */
 #endif
 
+/*--------------------------------------------------------------------*/
+
 #ifndef SFXNAME                 /* macros to generate function names */
 #define SFXNAME(n)      SFXNAME_1(n,SUFFIX)
 #define SFXNAME_1(n,s)  SFXNAME_2(n,s)

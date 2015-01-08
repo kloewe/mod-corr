@@ -88,11 +88,11 @@ extern int  SFXNAME(pccx) (REAL *data, REAL *res, int N, int T,
                            int var, ...);
 
 extern void SFXNAME(init_naive) (REAL *data, int N, int T,
-                                 REAL *diff, int X, REAL *rssd);
+                                 REAL *norm, int X);
 extern void SFXNAME(init_sse2)  (REAL *data, int N, int T,
-                                 REAL *diff, int X, REAL *rssd);
+                                 REAL *norm, int X);
 extern void SFXNAME(init_avx)   (REAL *data, int N, int T,
-                                 REAL *diff, int X, REAL *rssd);
+                                 REAL *norm, int X);
 
 /*----------------------------------------------------------------------
   Preprocessor Definitions

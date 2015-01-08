@@ -23,8 +23,8 @@
 #endif
 
 #include "cpuinfo.h"
-#include "pcc.h"
 #include "clamp.h"
+#include "pcc.h"
 
 /*----------------------------------------------------------------------
   Data Type Definition / Recursion Handling
@@ -136,8 +136,7 @@
   Type Definitions
 ----------------------------------------------------------------------*/
 typedef struct {                /* --- thread worker data --- */
-  REAL *diff;                   /* differences to mean value */
-  REAL *rssd;                   /* roots of sum of squared deviats. */
+  REAL *norm;                   /* normalized data (mean 0, rssd 1) */
   #if ROWS                      /* if to use an array of row starts */
   REAL **rows;                  /* array of row starts */
   #else                         /* if to use index computation */
@@ -169,7 +168,7 @@ static REAL** SFXNAME(make_rows) (REAL *res, int N)
   int  i;                       /* loop variable */
   REAL **rows;                  /* starts of output rows */
 
-  assert(res && (N > 0));       /* check the function arguments */
+  assert(res && (N > 1));       /* check the function arguments */
   rows = malloc((size_t)N *sizeof(REAL*));
   if (!rows) return NULL;       /* allocate array of row starts */
   for (i = 0; i < N; i++) {     /* traverse the matrix rows */
@@ -186,43 +185,45 @@ static REAL** SFXNAME(make_rows) (REAL *res, int N)
   Functions
 ----------------------------------------------------------------------*/
 
-void SFXNAME(init_naive) (REAL *data, int N, int T,
-                          REAL *diff, int X, REAL *rssd)
-{                               /* --- init. differences and rssds */
+void SFXNAME(init_naive) (REAL *data, int N, int T, REAL *norm, int X)
+{                               /* --- normalize input data */
   int  i, k;                    /* loop variables */
   REAL d, sum, sqr;             /* difference, sum (of squares) */
 
-  assert(data && diff && rssd && (T > 0) && (X >= T));
+  assert(data && norm && (T > 1) && (X >= T));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
     for (sum = 0, k = 0; k < T; k++)
       sum += data[i*T+k];       /* sum the data values and */
     sum /= (REAL)T;             /* compute their arithmetic mean */
     for (sqr = 0, k = 0; k < T; k++) {
-      d = diff[i*X+k] = data[i*T+k] -sum;
+      d = norm[i*X+k] = data[i*T+k] -sum;
       sqr += d*d;               /* compute differences to mean and */
     }                           /* sum of squared deviations from it */
-    for ( ; k < X; k++) diff[i*X+k] = 0;
-    rssd[i] = (REAL)sqrt(sqr);  /* pad array with differences to mean */
-  }                             /* root of sum of squared deviations */
+    sqr = (REAL)sqrt((double)sqr);
+    sqr = (sqr > 0) ? 1/sqr : 0;/* root of sum of squared deviations */
+    for (k = 0; k < T; k++)     /* normalize the data so that PCC */
+      norm[i*X+k] *= sqr;       /* is simply the inner product */
+    for ( ; k < X; k++) norm[i*X+k] = 0;
+  }                             /* pad array with normalized data */
 }  /* init_naive() */
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_naive) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_naive) (REAL *norm, REAL *res,
                                int N, int T, int X)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j;                    /* loop variables */
   REAL sum;                     /* sum of products */
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
     #if LOWER                   /* if lower triangular matrix */
     for (j = 0;   j < i; j++) { /* traverse the smaller indices */
     #else                       /* if upper triangular matrix */
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
-      sum = SFXNAME(pair_naive)(diff+i*X, diff+j*X, T);
-      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+      sum = SFXNAME(pair_naive)(norm+i*X, norm+j*X, T);
+      *res++ = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
     }                           /* compute correlation coefficient */
   }                             /* (Pearson's r) */
   return 0;                     /* return 'ok' */
@@ -230,7 +231,7 @@ static int SFXNAME(pcc_naive) (REAL *diff, REAL *rssd, REAL *res,
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_naive_tiled) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_naive_tiled) (REAL *norm, REAL *res,
                                      int N, int T, int X, int tile)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j, m, e;              /* loop variables */
@@ -239,7 +240,7 @@ static int SFXNAME(pcc_naive_tiled) (REAL *diff, REAL *rssd, REAL *res,
   REAL **rows;                  /* starts of output rows */
   #endif
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   #if ROWS                      /* if to use an array of row starts */
   rows = SFXNAME(make_rows)(res, N);
   if (!rows) return -1;         /* allocate and initialize */
@@ -254,9 +255,8 @@ static int SFXNAME(pcc_naive_tiled) (REAL *diff, REAL *rssd, REAL *res,
     for (i = 0; i < e; i++) {   /* traverse the smaller indices */
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* traverse the pair of series */
-        sum = SFXNAME(pair_naive)(diff+i*X, diff+j*X, T);
-        RESULT(i,j,N) =
-          SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_naive)(norm+i*X, norm+j*X, T);
+        RESULT(i,j,N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -276,8 +276,7 @@ static void SFXNAME(rct_naive) (SFXNAME(WORK) *w,
   assert(w                      /* check the funktion arguments */
   &&    (ra >= 0) && (ra < w->N) && (rb > ra) && (rb <= w->N)
   &&    (ca >= 0) && (ca < w->N) && (cb > ca) && (cb <= w->N));
-  j = (ra == ca) ? 2*w->tile : w->tile;
-  if (rb-ra > j) {              /* if larger than minimal tile size */
+  if (rb-ra > w->tile) {        /* if larger than minimal tile size */
     i = (ra+rb)/2;              /* halven the tile size and */
     j = (ca+cb)/2;              /* process parts recursively */
     #if LOWER                   /* if lower triangular matrix */
@@ -294,9 +293,8 @@ static void SFXNAME(rct_naive) (SFXNAME(WORK) *w,
   else {                        /* if no larger than min. tile size */
     for (i = ra; i < rb; i++) { /* traverse the rows */
       for (j = ca; j < cb; j++){/* traverse the columns */
-        sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_naive)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -311,7 +309,7 @@ static void SFXNAME(trg_naive) (SFXNAME(WORK) *w, int a, int b)
 
   assert(w                      /* check the funktion arguments */
   &&    (a >= 0) && (a < w->N) && (b > a) && (b <= w->N));
-  if (b-a > 2*w->tile) {        /* if larger than minimal tile size */
+  if (b-a > w->tile) {          /* if larger than minimal tile size */
     i = (a+b)/2;                /* halven the tile size */
     SFXNAME(trg_naive)(w, a, i);
     #if LOWER                   /* if lower triangular matrix */
@@ -327,9 +325,8 @@ static void SFXNAME(trg_naive) (SFXNAME(WORK) *w, int a, int b)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < b; j++){/* traverse the greater indices */
       #endif                    /* traverse the pair of series */
-        sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_naive)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -351,9 +348,8 @@ static WORKERDEF(wrk_naive, p)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < w->N; j++) {
       #endif                    /* traverse column indices */
-        sum = SFXNAME(pair_naive)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_naive)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (Pearson's r) and store it */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -384,9 +380,8 @@ static WORKERDEF(wrk_naive_tiled, p)
       for (i = 0; i < e; i++) { /* traverse the smaller indices */
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif                    /* traverse the pair of series */
-          sum = SFXNAME(pair_naive)(w->diff+i*w->X,w->diff+j*w->X,w->T);
-          w->RESULT(i,j,w->N)
-            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+          sum = SFXNAME(pair_naive)(w->norm+i*w->X,w->norm+j*w->X,w->T);
+          w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
         }                       /* compute the scalar product */
       }                         /* (the correlation coefficient, */
     }                           /* Pearson's r) and store it */
@@ -431,9 +426,8 @@ static WORKERDEF(wrk_naive_cobl, p)
 /*--------------------------------------------------------------------*/
 #ifdef __SSE2__
 
-void SFXNAME(init_sse2) (REAL *data, int N, int T,
-                                REAL *diff, int X, REAL *rssd)
-{                               /* --- init. differences and rssds */
+void SFXNAME(init_sse2) (REAL *data, int N, int T, REAL *norm, int X)
+{                               /* --- initialize normalized data */
   int     i, k, n;              /* loop variables */
   REAL    d, sum, sqr;          /* difference, sum (of squares) */
   #if REAL_IS_DOUBLE            /* data is double precision */
@@ -442,7 +436,7 @@ void SFXNAME(init_sse2) (REAL *data, int N, int T,
   __m128  s, e, m;              /* registers for SSE2 computations */
   #endif
 
-  assert(data && diff && rssd && (T > 0) && (X >= T));
+  assert(data && norm && (T > 1) && (X >= T));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
 
     /* --- compute mean value --- */
@@ -470,13 +464,13 @@ void SFXNAME(init_sse2) (REAL *data, int N, int T,
       sum += data[i*T+k];       /* sum the data values and */
     sum /= (REAL)T;             /* compute their arithmetic mean */
 
-    /* --- compute differences to mean and rssds --- */
+    /* --- compute root of sum of squared deviations --- */
     #if REAL_IS_DOUBLE          /* data is double precision */
     m = _mm_set1_pd(sum);       /* initialize the mean and */
     s = _mm_setzero_pd();       /* the sum of squares (2 values) */
     for (k = 0; k < (T & ~1); k += 2) {
       e = _mm_sub_pd(_mm_loadu_pd(data+i*T+k), m);
-      _mm_store_pd(diff+i*X+k, e);
+      _mm_store_pd(norm+i*X+k, e);
       s = _mm_add_pd(s, _mm_mul_pd(e, e));
     }                           /* compute two diffs/squares in par. */
     s = _mm_add_pd(s, _mm_shuffle_pd(s, s, 1));
@@ -486,7 +480,7 @@ void SFXNAME(init_sse2) (REAL *data, int N, int T,
     s = _mm_setzero_ps();       /* initialize the sum (4 values) */
     for (k = 0; k < (T & ~3); k += 4) {
       e = _mm_sub_ps(_mm_loadu_ps(data+i*T+k), m);
-      _mm_store_ps(diff+i*X+k, e);
+      _mm_store_ps(norm+i*X+k, e);
       s = _mm_add_ps(s, _mm_mul_ps(e, e));
     }                           /* compute four diffs/squares in par. */
     s = _mm_add_ps(s, _mm_movehl_ps(s, s));
@@ -494,31 +488,43 @@ void SFXNAME(init_sse2) (REAL *data, int N, int T,
     sqr = _mm_cvtss_f32(s);     /* sum four sums horizontally */
     #endif
     for ( ; k < T; k++) {       /* traverse the remaining values */
-      d = diff[i*X+k] = data[i*T+k] -sum;
+      d = norm[i*X+k] = data[i*T+k] -sum;
       sqr += d*d;               /* compute differences to mean and */
     }                           /* sum of squared deviations from it */
-    for ( ; k < X; k++) diff[i*X+k] = 0;
-    rssd[i] = (REAL)sqrt(sqr);  /* pad array with differences to mean */
-  }                             /* root of sum of squared deviations */
+    sqr = (REAL)sqrt((double)sqr);
+    sqr = (sqr > 0) ? 1/sqr : 0;/* root of sum of squared deviations */
+    #if REAL_IS_DOUBLE          /* data is double precision */
+    e = _mm_set1_pd(sqr);       /* initialize the rssd */
+    for (k = 0; k < (T & ~1); k += 2)
+      _mm_store_pd(norm+i*X+k, _mm_mul_pd(_mm_loadu_pd(norm+i*X+k), e));
+    #else                       /* data is single precision */
+    e = _mm_set1_ps(sqr);       /* initialize the rssd */
+    for (k = 0; k < (T & ~3); k += 4)
+      _mm_store_ps(norm+i*X+k, _mm_mul_ps(_mm_loadu_ps(norm+i*X+k), e));
+    #endif                      /* normalize the data so that PCC */
+    for ( ; k < T; k++)         /* is simply the inner product; */
+      norm[i*X+k] *= sqr;       /* process the remaining elements */
+    for ( ; k < X; k++) norm[i*X+k] = 0;
+  }                             /* pad array with normalized data */
 }  /* init_sse2() */
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_sse2) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_sse2) (REAL *norm, REAL *res,
                               int N, int T, int X)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j;                    /* loop variables */
   REAL sum;                     /* sum of products */
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
     #if LOWER                   /* if lower triangular matrix */
     for (j = 0;   j < i; j++) { /* traverse the smaller indices */
     #else                       /* if upper triangular matrix */
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
-      sum = SFXNAME(pair_sse2)(diff+i*X, diff+j*X, T);
-      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+      sum = SFXNAME(pair_sse2)(norm+i*X, norm+j*X, T);
+      *res++ = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
     }                           /* sum the values of the sum and */
   }                             /* compute correlation coefficient */
   return 0;                     /* return 'ok' */
@@ -526,7 +532,7 @@ static int SFXNAME(pcc_sse2) (REAL *diff, REAL *rssd, REAL *res,
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_sse2_tiled) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_sse2_tiled) (REAL *norm, REAL *res,
                                     int N, int T, int X, int tile)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j, m, e;              /* loop variables */
@@ -535,7 +541,7 @@ static int SFXNAME(pcc_sse2_tiled) (REAL *diff, REAL *rssd, REAL *res,
   REAL **rows;                  /* starts of output rows */
   #endif
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   #if ROWS                      /* if to use an array of row starts */
   rows = SFXNAME(make_rows)(res, N);
   if (!rows) return -1;         /* allocate and initialize */
@@ -550,9 +556,8 @@ static int SFXNAME(pcc_sse2_tiled) (REAL *diff, REAL *rssd, REAL *res,
     for (i = 0; i < e; i++) {   /* traverse the smaller indices */
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* traverse the pair of series */
-        sum = SFXNAME(pair_sse2)(diff+i*X, diff+j*X, T);
-        RESULT(i,j,N)
-          = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_sse2)(norm+i*X, norm+j*X, T);
+        RESULT(i,j,N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -572,8 +577,7 @@ static void SFXNAME(rct_sse2) (SFXNAME(WORK) *w,
   assert(w                      /* check the funktion arguments */
   &&    (ra >= 0) && (ra < w->N) && (rb > ra) && (rb <= w->N)
   &&    (ca >= 0) && (ca < w->N) && (cb > ca) && (cb <= w->N));
-  j = (ra == ca) ? 2*w->tile : w->tile;
-  if (rb-ra > j) {              /* if larger than minimal tile size */
+  if (rb-ra > w->tile) {        /* if larger than minimal tile size */
     i = (ra+rb)/2;              /* halven the tile size and */
     j = (ca+cb)/2;              /* process parts recursively */
     #if LOWER                   /* if lower triangular matrix */
@@ -590,9 +594,8 @@ static void SFXNAME(rct_sse2) (SFXNAME(WORK) *w,
   else {                        /* if no larger than min. tile size */
     for (i = ra; i < rb; i++) { /* traverse the rows */
       for (j = ca; j < cb; j++){/* traverse the columns */
-        sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_sse2)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -607,7 +610,7 @@ static void SFXNAME(trg_sse2) (SFXNAME(WORK) *w, int a, int b)
 
   assert(w                      /* check the funktion arguments */
   &&    (a >= 0) && (a < w->N) && (b > a) && (b <= w->N));
-  if (b-a > 2*w->tile) {        /* if larger than minimal tile size */
+  if (b-a > w->tile) {          /* if larger than minimal tile size */
     i = (a+b)/2;                /* halven the tile size */
     SFXNAME(trg_sse2)(w, a, i);
     #if LOWER                   /* if lower triangular matrix */
@@ -623,9 +626,8 @@ static void SFXNAME(trg_sse2) (SFXNAME(WORK) *w, int a, int b)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < b; j++){/* traverse the greater indices */
       #endif                    /* traverse the pair of series */
-        sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_sse2)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -647,9 +649,8 @@ static WORKERDEF(wrk_sse2, p)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < w->N; j++) {
       #endif                    /* traverse the row indices */
-        sum = SFXNAME(pair_sse2)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_sse2)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (Pearson's r) and store it */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -680,9 +681,8 @@ static WORKERDEF(wrk_sse2_tiled, p)
       for (i = 0; i < e; i++) { /* traverse the smaller indices */
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif
-          sum = SFXNAME(pair_sse2)(w->diff+i*w->X,w->diff+j*w->X, w->T);
-          w->RESULT(i,j,w->N)
-            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+          sum = SFXNAME(pair_sse2)(w->norm+i*w->X,w->norm+j*w->X, w->T);
+          w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
         }                       /* compute the scalar product */
       }                         /* (the correlation coefficient, */
     }                           /* Pearson's r) and store it */
@@ -728,9 +728,8 @@ static WORKERDEF(wrk_sse2_cobl, p)
 /*--------------------------------------------------------------------*/
 #ifdef __AVX__
 
-void SFXNAME(init_avx) (REAL *data, int N, int T,
-                               REAL *diff, int X, REAL *rssd)
-{                               /* --- init. differences and rssds */
+void SFXNAME(init_avx) (REAL *data, int N, int T, REAL *norm, int X)
+{                               /* --- initialize normalized data */
   int     i, k, n;              /* loop variables */
   REAL    d, sum, sqr;          /* difference, sum (of squares) */
   #if REAL_IS_DOUBLE            /* data is double precision */
@@ -741,7 +740,7 @@ void SFXNAME(init_avx) (REAL *data, int N, int T,
   __m128  x;                    /* register  for SSE2 computations */
   #endif
 
-  assert(data && diff && rssd && (T > 0) && (X >= T));
+  assert(data && norm && (T > 1) && (X >= T));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
 
     /* --- compute mean value --- */
@@ -773,13 +772,13 @@ void SFXNAME(init_avx) (REAL *data, int N, int T,
       sum += data[i*T+k];       /* sum the data values and */
     sum /= (REAL)T;             /* compute their arithmetic mean */
 
-    /* --- compute differences to mean and rssds --- */
+    /* --- compute standard deviation --- */
     #if REAL_IS_DOUBLE          /* data is double precision */
     m = _mm256_set1_pd(sum);    /* initialize the mean and */
     s = _mm256_setzero_pd();    /* the sum of squares (4 values) */
     for (k = 0; k < (T & ~3); k += 4) {
       e = _mm256_sub_pd(_mm256_loadu_pd(data+i*T+k), m);
-      _mm256_store_pd(diff+i*X+k, e);
+      _mm256_store_pd(norm+i*X+k, e);
       s = _mm256_add_pd(s, _mm256_mul_pd(e, e));
     }                           /* compute four values in parallel */
     x = _mm_add_pd(_mm256_extractf128_pd(s, 0),
@@ -791,7 +790,7 @@ void SFXNAME(init_avx) (REAL *data, int N, int T,
     s = _mm256_setzero_ps();    /* the sum of squares (8 values) */
     for (k = 0; k < (T & ~7); k += 8) {
       e = _mm256_sub_ps(_mm256_loadu_ps(data+i*T+k), m);
-      _mm256_store_ps(diff+i*X+k, e);
+      _mm256_store_ps(norm+i*X+k, e);
       s = _mm256_add_ps(s, _mm256_mul_ps(e, e));
     }                           /* compute eight values in parallel */
     s = _mm256_hadd_ps(s, s);   /* do horizontal sums in upper */
@@ -801,31 +800,45 @@ void SFXNAME(init_avx) (REAL *data, int N, int T,
     sqr = _mm_cvtss_f32(x);     /* sum eight sums horizontally */
     #endif
     for ( ; k < T; k++) {       /* traverse the remaining values */
-      d = diff[i*X+k] = data[i*T+k] -sum;
+      d = norm[i*X+k] = data[i*T+k] -sum;
       sqr += d*d;               /* compute differences to mean and */
     }                           /* sum of squared deviations from it */
-    for ( ; k < X; k++) diff[i*X+k] = 0;
-    rssd[i] = (REAL)sqrt(sqr);  /* pad array with differences to mean */
-  }                             /* root of sum of squared deviations */
+    sqr = (REAL)sqrt((double)sqr);
+    sqr = (sqr > 0) ? 1/sqr : 0;/* root of sum of squared deviations */
+    #if REAL_IS_DOUBLE          /* data is double precision */
+    e = _mm256_set1_pd(sqr);    /* initialize the rssd */
+    for (k = 0; k < (T & ~3); k += 4)
+      _mm256_store_pd(norm+i*X+k,
+        _mm256_mul_pd(_mm256_loadu_pd(norm+i*X+k), e));
+    #else                       /* data is single precision */
+    e = _mm256_set1_ps(sqr);    /* initialize the rssd */
+    for (k = 0; k < (T & ~7); k += 8)
+      _mm256_store_ps(norm+i*X+k,
+        _mm256_mul_ps(_mm256_loadu_ps(norm+i*X+k), e));
+    #endif                      /* normalize the data so that PCC */
+    for ( ; k < T; k++)         /* is simply the inner product; */
+      norm[i*X+k] *= sqr;       /* process the remaining elements */
+    for ( ; k < X; k++) norm[i*X+k] = 0;
+  }                             /* pad array with differences to mean */
 }  /* init_avx() */
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_avx) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_avx) (REAL *norm, REAL *res,
                              int N, int T, int X)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j;                    /* loop variables */
   REAL sum;                     /* sum of products */
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   for (i = 0; i < N; i++) {     /* traverse the data arrays */
     #if LOWER                   /* if lower triangular matrix */
     for (j = 0;   j < i; j++) { /* traverse the smaller indices */
     #else                       /* if upper triangular matrix */
     for (j = i+1; j < N; j++) { /* traverse the greater indices */
     #endif                      /* traverse the pair of series */
-      sum = SFXNAME(pair_avx)(diff+i*X, diff+j*X, T);
-      *res++ = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+      sum = SFXNAME(pair_avx)(norm+i*X, norm+j*X, T);
+      *res++ = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
     }                           /* sum the values of the sum and */
   }                             /* compute correlation coefficient */
   return 0;                     /* return 'ok' */
@@ -833,7 +846,7 @@ static int SFXNAME(pcc_avx) (REAL *diff, REAL *rssd, REAL *res,
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_avx_tiled) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_avx_tiled) (REAL *norm, REAL *res,
                                    int N, int T, int X, int tile)
 {                               /* --- compute Pearson's corr. coeff. */
   int  i, j, m, e;              /* loop variables */
@@ -842,7 +855,7 @@ static int SFXNAME(pcc_avx_tiled) (REAL *diff, REAL *rssd, REAL *res,
   REAL **rows;                  /* starts of output rows */
   #endif
 
-  assert(diff && rssd && res && (N > 0) && (T > 0));
+  assert(norm && res && (N > 1) && (T > 1));
   #if ROWS                      /* if to use an array of row starts */
   rows = SFXNAME(make_rows)(res, N);
   if (!rows) return -1;         /* allocate and initialize */
@@ -857,9 +870,8 @@ static int SFXNAME(pcc_avx_tiled) (REAL *diff, REAL *rssd, REAL *res,
     for (i = 0; i < e; i++) {   /* traverse the smaller indices */
       for (j = (i >= m) ? i+1 : m; j < e; j++) {
     #endif                      /* traverse the pair of series */
-        sum = SFXNAME(pair_avx)(diff+i*X, diff+j*X, T);
-        RESULT(i,j,N)
-          = SFXNAME(clamp)(sum /(rssd[i] *rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_avx)(norm+i*X, norm+j*X, T);
+        RESULT(i,j,N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -879,8 +891,7 @@ static void SFXNAME(rct_avx) (SFXNAME(WORK) *w,
   assert(w                      /* check the funktion arguments */
   &&    (ra >= 0) && (ra < w->N) && (rb > ra) && (rb <= w->N)
   &&    (ca >= 0) && (ca < w->N) && (cb > ca) && (cb <= w->N));
-  j = (ra == ca) ? 2*w->tile : w->tile;
-  if (rb-ra > j) {              /* if larger than minimal tile size */
+  if (rb-ra > w->tile) {        /* if larger than minimal tile size */
     i = (ra+rb)/2;              /* halven the tile size and */
     j = (ca+cb)/2;              /* process parts recursively */
     #if LOWER                   /* if lower triangular matrix */
@@ -897,9 +908,8 @@ static void SFXNAME(rct_avx) (SFXNAME(WORK) *w,
   else {                        /* if no larger than min. tile size */
     for (i = ra; i < rb; i++) { /* traverse the rows */
       for (j = ca; j < cb; j++){/* traverse the columns */
-        sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_avx)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -914,7 +924,7 @@ static void SFXNAME(trg_avx) (SFXNAME(WORK) *w, int a, int b)
 
   assert(w                      /* check the funktion arguments */
   &&    (a >= 0) && (a < w->N) && (b > a) && (b <= w->N));
-  if (b-a > 2*w->tile) {        /* if larger than minimal tile size */
+  if (b-a > w->tile) {          /* if larger than minimal tile size */
     i = (a+b)/2;                /* halven the tile size */
     SFXNAME(trg_avx)(w, a, i);
     #if LOWER                   /* if lower triangular matrix */
@@ -930,9 +940,8 @@ static void SFXNAME(trg_avx) (SFXNAME(WORK) *w, int a, int b)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < b; j++){/* traverse the greater indices */
       #endif                    /* traverse the pair of series */
-        sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_avx)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (the correlation coefficient, */
   }                             /* Pearson's r) and store it */
@@ -954,9 +963,8 @@ static WORKERDEF(wrk_avx, p)
       #else                     /* if upper triangular matrix */
       for (j = i+1; j < w->N; j++) {
       #endif                    /* traverse the row indices */
-        sum = SFXNAME(pair_avx)(w->diff+i*w->X, w->diff+j*w->X, w->T);
-        w->RESULT(i,j,w->N)
-          = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+        sum = SFXNAME(pair_avx)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+        w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
       }                         /* compute the scalar product */
     }                           /* (Pearson's r) and store it */
     if (w->s > w->N/2) break;   /* if second strip done, abort */
@@ -987,9 +995,8 @@ static WORKERDEF(wrk_avx_tiled, p)
       for (i = 0; i < e; i++) { /* traverse the smaller indices */
         for (j = (i >= m) ? i+1 : m; j < e; j++) {
       #endif
-          sum = SFXNAME(pair_avx)(w->diff+i*w->X,w->diff+j*w->X, w->T);
-          w->RESULT(i,j,w->N)
-            = SFXNAME(clamp)(sum /(w->rssd[i] *w->rssd[j]), -1.0, +1.0);
+          sum = SFXNAME(pair_avx)(w->norm+i*w->X, w->norm+j*w->X, w->T);
+          w->RESULT(i,j,w->N) = SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
         }                       /* compute the scalar product */
       }                         /* (the correlation coefficient, */
     }                           /* Pearson's r) and store it */
@@ -1034,15 +1041,14 @@ static WORKERDEF(wrk_avx_cobl, p)
 #endif  /* #ifdef __AVX__ */
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_single) (REAL *diff, REAL *rssd, REAL *res,
-                                int N, int T, int X,
-                                int var, int tile)
+static int SFXNAME(pcc_single) (REAL *norm, REAL *res,
+                                int N, int T, int X, int var, int tile)
 {                               /* --- single thread version */
   SFXNAME(WORK) w;              /* cache-oblivious recursion data */
 
-  assert(diff && rssd && res && (N > 0) && (T > 0) && (X >= T));
+  assert(norm && res && (N > 1) && (T > 1) && (X >= T));
   if (var & PCC_COBL) {         /* if to use cache-oblivious version */
-    w.diff = diff; w.rssd = rssd;
+    w.norm = norm;
     w.N = N; w.T = T; w.X = X;  /* note the data parameters */
     w.tile = tile;              /* and the minimal tile size */
     #if ROWS                    /* if to use an array of row starts */
@@ -1073,21 +1079,21 @@ static int SFXNAME(pcc_single) (REAL *diff, REAL *rssd, REAL *res,
     #ifdef __AVX__              /* if AVX instructions available */
     case PCC_AVX:               /* if to use AVX computation */
       if (var & PCC_TILED)      /* distinguished tiled version */
-           SFXNAME(pcc_avx_tiled)  (diff, rssd, res, N, T, X, tile);
-      else SFXNAME(pcc_avx)        (diff, rssd, res, N, T, X);
+           SFXNAME(pcc_avx_tiled)  (norm, res, N, T, X, tile);
+      else SFXNAME(pcc_avx)        (norm, res, N, T, X);
       break;                    /* compute correlation coefficient */
     #endif
     #ifdef __SSE2__             /* if SSE2 instructions available */
     case PCC_SSE2:              /* if to use SSE2 computation */
       if (var & PCC_TILED)      /* distinguished tiled version */
-           SFXNAME(pcc_sse2_tiled) (diff, rssd, res, N, T, X, tile);
-      else SFXNAME(pcc_sse2)       (diff, rssd, res, N, T, X);
+           SFXNAME(pcc_sse2_tiled) (norm, res, N, T, X, tile);
+      else SFXNAME(pcc_sse2)       (norm, res, N, T, X);
       break;                    /* compute correlation coefficient */
     #endif
     default:                    /* if to use naive computation */
       if (var & PCC_TILED)      /* distinguished tiled version */
-           SFXNAME(pcc_naive_tiled)(diff, rssd, res, N, T, X, tile);
-      else SFXNAME(pcc_naive)      (diff, rssd, res, N, T, X);
+           SFXNAME(pcc_naive_tiled)(norm, res, N, T, X, tile);
+      else SFXNAME(pcc_naive)      (norm, res, N, T, X);
       break;                    /* compute correlation coefficient */
   }  /* switch (var & PCC_VARIANT) */
 
@@ -1096,7 +1102,7 @@ static int SFXNAME(pcc_single) (REAL *diff, REAL *rssd, REAL *res,
 
 /*--------------------------------------------------------------------*/
 
-static int SFXNAME(pcc_multi) (REAL *diff, REAL *rssd, REAL *res,
+static int SFXNAME(pcc_multi) (REAL *norm, REAL *res,
                                int N, int T, int X,
                                int var, int tile, int nthd)
 {                               /* --- multi-thread version */
@@ -1111,7 +1117,7 @@ static int SFXNAME(pcc_multi) (REAL *diff, REAL *rssd, REAL *res,
   DWORD  thid;                  /* dummy for storing the thread id */
   #endif                        /* (not really needed here) */
 
-  assert(diff && rssd && res && (N > 0) && (T > 0) && (nthd > 0));
+  assert(norm && res && (N > 1) && (T > 1) && (nthd > 0));
   #if ROWS                      /* if to use an array of row starts */
   rows = SFXNAME(make_rows)(res, N);
   if (!rows) return -1;         /* allocate and initialize */
@@ -1147,8 +1153,7 @@ static int SFXNAME(pcc_multi) (REAL *diff, REAL *rssd, REAL *res,
 
   /* --- execute the threads --- */
   for (i = 0; i < nthd; i++) {  /* traverse the threads */
-    w[i].diff = diff;           /* store differences to mean and */
-    w[i].rssd = rssd;           /* roots of sums of squared deviats. */
+    w[i].norm = norm;           /* store the normalized data */
     #if ROWS                    /* if row starts are available */
     w[i].rows = rows;           /* note the row starts */
     #else                       /* if to use index computation */
@@ -1193,11 +1198,10 @@ int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
   int     tile = 0;             /* size of the tiles */
   int     nthd = proccnt();     /* get the number of processors */
   int     X;                    /* size of padded data arrays */
-  REAL    *rssd;                /* roots of sums of squared deviats. */
-  REAL    *diff;                /* (differences to) mean values */
+  REAL    *norm, *mem;          /* normalized data (mean 0, rssd 1) */
   va_list args;                 /* list of variable arguments */
 
-  assert(data && res && (N > 0) && (T > 0));
+  assert(data && res && (N > 1) && (T > 1));
 
   /* --- get variable arguments --- */
   va_start(args, var);          /* start variable arguments */
@@ -1267,32 +1271,32 @@ int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
   if ((tile <= 1) || (tile >= N))
     var &= ~PCC_TILED;          /* check for a useful tile size */
 
-  /* --- compute differences and rssds --- */
-  rssd = malloc(((size_t)N*(size_t)X +(size_t)N) *sizeof(REAL) +31);
-  diff = (REAL*)(((ptrdiff_t)(rssd +N) +31) & ~31);
-  if (!rssd) return -1;         /* allocate some work memory */
+  /* --- normalize the input data --- */
+  mem = malloc((size_t)N*(size_t)X *sizeof(REAL) +31);
+  if (!mem) return -1;          /* get memory for normalized data */
+  norm = (REAL*)(((ptrdiff_t)mem +31) & ~31);
   switch (var & PCC_VARIANT) {  /* evaluate the variant */
     #ifdef __AVX__              /* if AVX instructions available */
     case PCC_AVX:               /* if to use AVX computation */
-      SFXNAME(init_avx)  (data, N, T, diff, X, rssd); break;
-    #endif                      /* compute differences and rssds */
+      SFXNAME(init_avx)  (data, N, T, norm, X); break;
+    #endif                      /* normalize the input data */
     #ifdef __SSE2__             /* if SSE2 instructions available */
     case PCC_SSE2:              /* if to use SSE2 computation */
-      SFXNAME(init_sse2) (data, N, T, diff, X, rssd); break;
-    #endif                      /* compute differences and rssds */
+      SFXNAME(init_sse2) (data, N, T, norm, X); break;
+    #endif                      /* normalize the input data */
     default:                    /* if to use naive computation */
-      SFXNAME(init_naive)(data, N, T, diff, X, rssd); break;
-  }                             /* compute differences and rssds */
+      SFXNAME(init_naive)(data, N, T, norm, X); break;
+  }                             /* normalize the input data */
 
   /* --- compute correlation coefficients --- */
   if (nthd <= 1)                /* if to use only one thread, */
     var &= ~PCC_THREAD;         /* do not use multi-thread version */
   if (var & PCC_THREAD)         /* if multi-thread  version */
-    r = SFXNAME(pcc_multi) (diff, rssd, res, N, T, X, var, tile, nthd);
+    r = SFXNAME(pcc_multi) (norm, res, N, T, X, var, tile, nthd);
   else                          /* if single-thread version */
-    r = SFXNAME(pcc_single)(diff, rssd, res, N, T, X, var, tile);
+    r = SFXNAME(pcc_single)(norm, res, N, T, X, var, tile);
 
-  free(rssd);                   /* deallocate work memory */
+  free(mem);                    /* deallocate normalized data */
   return r;                     /* return the error status */
 }  /* pccx() */
 
@@ -1363,7 +1367,7 @@ int main (int argc, char* argv[])
   N = atoi(argv[1]);            /* get the number of voxels */
   T = atoi(argv[2]);            /* and the number of time points */
   z = (size_t)N*(size_t)(N-1)/2;/* compute size of result arrays */
-#if 1
+#if 0
   srand((unsigned)time(NULL));  /* seed the random number generator */
 #else
   srand(1);                     /* seed the random number generator */

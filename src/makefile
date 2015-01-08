@@ -7,7 +7,6 @@ SHELL       = /bin/bash
 CPUINFODIR  = ../../cpuinfo/src
 
 CC       = gcc -std=c99 -march=native
-# CC       = gcc -std=c99 -mavx
 CFBASE   = -Wall -Wextra -Wno-unused-parameter -Wconversion \
            -pedantic $(ADDFLAGS)
 CFLAGS   = $(CFBASE) -DNDEBUG -O3
@@ -27,27 +26,44 @@ PRGS     = ../bin/pcc ../bin/tetracc
 #-----------------------------------------------------------------------
 all:        $(PRGS)
 
-../bin/pcc:         $(OBJS) pcc.o makefile
-	$(LD) $(LDFLAGS) $(OBJS) pcc.o     $(LIBS) -o $@
+pcc:        ../bin/pcc
+	echo ""
 
-../bin/tetracc:     $(OBJS) tetracc.o makefile
-	$(LD) $(LDFLAGS) $(OBJS) tetracc.o $(LIBS) -o $@
+tetracc:    ../bin/tetracc
+	echo ""
+
+../bin/pcc:         $(OBJS) pcc_main.o makefile
+	$(LD) $(LDFLAGS) $(OBJS) pcc_main.o $(LIBS) -o $@
+
+../bin/tetracc:     $(OBJS) tcc_main.o makefile
+	$(LD) $(LDFLAGS) $(OBJS) tcc_main.o $(LIBS) -o $@
 
 #-----------------------------------------------------------------------
 # Main Programs
 #-----------------------------------------------------------------------
-pcc.o:      pcc.h $(HDRS)
-pcc.o:      pcc.c makefile
+pcc_main.o:   pcc.h $(HDRS)
+pcc_main.o:   pcc.c makefile
 	$(CC) $(CFLAGS) -funroll-loops $(INCS) -DPCC_MAIN -c pcc.c -o $@
 
-tetracc.o:  tetracc.h $(HDRS)
-tetracc.o:  tetracc.c tetracc.h makefile
+tcc_main.o:   tetracc.h $(HDRS)
+tcc_main.o:   tetracc.c makefile
 	$(CC) $(CFLAGS) $(INCS) -DTCC_MAIN -c tetracc.c -o $@
+
+#-----------------------------------------------------------------------
+# Main Modules
+#-----------------------------------------------------------------------
+pcc.o:      pcc.h $(HDRS)
+pcc.o:      pcc.c makefile
+	$(CC) $(CFLAGS) -funroll-loops $(INCS) -c pcc.c -o $@
+
+tetracc.o:  tetracc.h $(HDRS)
+tetracc.o:  tetracc.c makefile
+	$(CC) $(CFLAGS) $(INCS) -c tetracc.c -o $@
 
 #-----------------------------------------------------------------------
 # Utility Functions
 #-----------------------------------------------------------------------
-binarize.o: $(HDRS)
+binarize.o: binarize.h
 binarize.o: binarize.c makefile
 	$(CC) $(CFLAGS) -c binarize.c -o $@
 
@@ -63,8 +79,8 @@ $(CPUINFODIR)/cpuinfo.o:
 dist:
 	$(MAKE) clean
 	cd ../..; rm -f corr.zip corr.tar.gz; \
-        zip -rq corr.zip    corr/{src,doc} cpuinfo/{src,doc}; \
-        tar cfz corr.tar.gz corr/{src,doc} cpuinfo/{src,doc}
+        zip -rq corr.zip    corr/{src,doc,bin} cpuinfo/{src,doc}; \
+        tar cfz corr.tar.gz corr/{src,doc,bin} cpuinfo/{src,doc}
 
 #-----------------------------------------------------------------------
 # Installation

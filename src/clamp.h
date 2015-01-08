@@ -1,3 +1,8 @@
+/*----------------------------------------------------------------------
+  File    : clamp.h
+  Contents: clamp values to the interval [min,max]
+  Author  : Kristian Loewe, Christian Borgelt
+----------------------------------------------------------------------*/
 #ifndef __CLAMP__
 
 #include "stdio.h"

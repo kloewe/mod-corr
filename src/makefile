@@ -29,11 +29,11 @@ all:        $(PRGS)
 pcc:        ../bin/pcc
 	echo ""
 
-tetracc:    ../bin/tetracc
-	echo ""
-
 ../bin/pcc:         $(OBJS) pcc_main.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) pcc_main.o $(LIBS) -o $@
+
+tetracc:    ../bin/tetracc
+	echo ""
 
 ../bin/tetracc:     $(OBJS) tcc_main.o makefile
 	$(LD) $(LDFLAGS) $(OBJS) tcc_main.o $(LIBS) -o $@

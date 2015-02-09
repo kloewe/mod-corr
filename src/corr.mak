@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------
-# File    : pcc.mak
+# File    : corr.mak
 # Contents: build pcc and tetracc programs (on Windows systems)
 # Author  : Christian Borgelt
 #-----------------------------------------------------------------------

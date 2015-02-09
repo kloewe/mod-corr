@@ -136,17 +136,21 @@
   Type Definitions
 ----------------------------------------------------------------------*/
 typedef struct {                /* --- thread worker data --- */
-  REAL *norm;                   /* normalized data (mean 0, rssd 1) */
+  REAL   *norm;                 /* normalized data (mean 0, rssd 1) */
   #if ROWS                      /* if to use an array of row starts */
-  REAL **rows;                  /* array of row starts */
+  REAL   **rows;                /* array of row starts */
   #else                         /* if to use index computation */
-  REAL *res;                    /* result array */
+  REAL   *res;                  /* result array */
   #endif
-  int  N;                       /* number of series */
-  int  T;                       /* original length of each serie */
-  int  X;                       /* padded   length of each serie */
-  int  tile;                    /* tile size (columns to group) */
-  int  s, e;                    /* index of start and end serie */
+  int    N;                     /* number of series */
+  int    T;                     /* original length of each serie */
+  int    X;                     /* padded   length of each serie */
+  int    tile;                  /* tile size (columns to group) */
+  int    s, e;                  /* index of start and end serie */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  double beg;                   /* start time of thread */
+  double end;                   /* end   time of thread */
+  #endif                        /* (for time loss computation) */
 } SFXNAME(WORK);                /* (thread worker data) */
 
 #ifndef WORKERTYPE              /* if not yet defined */
@@ -158,6 +162,24 @@ typedef void*        WORKER (void*);
 #endif                          /* worker for parallel execution */
 #endif
 
+/*----------------------------------------------------------------------
+  Timer Function
+----------------------------------------------------------------------*/
+#if defined PCC_BENCH && !defined TIMER
+#define TIMER
+
+static double timer (void)
+{                               /* --- get current time */
+  #ifdef _WIN32                 /* if Microsoft Windows system */
+  return 0.001 *(double)timeGetTime();
+  #else                         /* if Linux/Unix system */
+  struct timespec tp;           /* POSIX time specification */
+  clock_gettime(CLOCK_MONOTONIC, &tp);
+  return (double)tp.tv_sec +1e-9 *(double)tp.tv_nsec;
+  #endif                        /* return time in seconds */
+}  /* timer() */
+
+#endif
 /*----------------------------------------------------------------------
   Auxiliary Functions
 ----------------------------------------------------------------------*/
@@ -341,6 +363,9 @@ static WORKERDEF(wrk_naive, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (i = w->s; i < w->e; i++) {   /* traverse row indices */
       #if LOWER                 /* if lower triangular matrix */
@@ -358,6 +383,9 @@ static WORKERDEF(wrk_naive, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_naive() */
 
@@ -370,6 +398,9 @@ static WORKERDEF(wrk_naive_tiled, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (m = w->s; m < w->e; m += w->tile) {
       e = (m +w->tile < w->e) ? m +w->tile : w->e;
@@ -391,6 +422,9 @@ static WORKERDEF(wrk_naive_tiled, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_naive_tiled() */
 
@@ -402,6 +436,9 @@ static WORKERDEF(wrk_naive_cobl, p)
   int s, e, k;                  /* loop variables */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     SFXNAME(trg_naive)(w, w->s, w->e);
     k = w->e -w->s;             /* compute leading triangle */
@@ -420,6 +457,9 @@ static WORKERDEF(wrk_naive_cobl, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = s;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_naive_cobl() */
 
@@ -642,6 +682,9 @@ static WORKERDEF(wrk_sse2, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (i = w->s; i < w->e; i++) {
       #if LOWER                 /* if lower triangular matrix */
@@ -659,6 +702,9 @@ static WORKERDEF(wrk_sse2, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_sse2() */
 
@@ -671,6 +717,9 @@ static WORKERDEF(wrk_sse2_tiled, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (m = w->s; m < w->e; m += w->tile) {
       e = (m +w->tile < w->e) ? m +w->tile : w->e;
@@ -692,6 +741,9 @@ static WORKERDEF(wrk_sse2_tiled, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_sse2_tiled() */
 
@@ -703,6 +755,9 @@ static WORKERDEF(wrk_sse2_cobl, p)
   int s, e, k;                  /* loop variables */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     SFXNAME(trg_sse2)(w, w->s, w->e);
     k = w->e -w->s;             /* compute leading triangle */
@@ -721,6 +776,9 @@ static WORKERDEF(wrk_sse2_cobl, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = s;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_sse2_cobl() */
 
@@ -956,6 +1014,9 @@ static WORKERDEF(wrk_avx, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (i = w->s; i < w->e; i++) {
       #if LOWER                 /* if lower triangular matrix */
@@ -973,6 +1034,9 @@ static WORKERDEF(wrk_avx, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_avx() */
 
@@ -985,6 +1049,9 @@ static WORKERDEF(wrk_avx_tiled, p)
   REAL sum;                     /* sum of products */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     for (m = w->s; m < w->e; m += w->tile) {
       e = (m +w->tile < w->e) ? m +w->tile : w->e;
@@ -1006,6 +1073,9 @@ static WORKERDEF(wrk_avx_tiled, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = i;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_avx_tiled() */
 
@@ -1017,6 +1087,9 @@ static WORKERDEF(wrk_avx_cobl, p)
   int s, e, k;                  /* loop variables */
 
   assert(p);                    /* check the function argument */
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->beg = timer();             /* note the start time of the thread */
+  #endif
   while (1) {                   /* process two strip parts */
     SFXNAME(trg_avx)(w, w->s, w->e);
     k = w->e -w->s;             /* compute leading triangle */
@@ -1035,6 +1108,9 @@ static WORKERDEF(wrk_avx_cobl, p)
     w->e = w->N -w->s;          /* get start and end index */
     w->s = s;                   /* of the opposite strip */
   }
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  w->end = timer();             /* note the end time of the thread */
+  #endif
   return THREAD_OK;             /* return a dummy result */
 }  /* wrk_avx_cobl() */
 
@@ -1106,7 +1182,7 @@ static int SFXNAME(pcc_multi) (REAL *norm, REAL *res,
                                int N, int T, int X,
                                int var, int tile, int nthd)
 {                               /* --- multi-thread version */
-  int  i, k, r = 0;             /* loop variables, error status */
+  int  i, k, n, r = 0;          /* loop variables, error status */
   #if ROWS                      /* if to use an array of row starts */
   REAL **rows;                  /* starts of output rows */
   #endif
@@ -1152,37 +1228,58 @@ static int SFXNAME(pcc_multi) (REAL *norm, REAL *res,
   }                             /* get the default worker (naive) */
 
   /* --- execute the threads --- */
-  for (i = 0; i < nthd; i++) {  /* traverse the threads */
-    w[i].norm = norm;           /* store the normalized data */
+  for (n = 0; n < nthd; n++) {  /* traverse the threads */
+    w[n].norm = norm;           /* store the normalized data */
     #if ROWS                    /* if row starts are available */
-    w[i].rows = rows;           /* note the row starts */
+    w[n].rows = rows;           /* note the row starts */
     #else                       /* if to use index computation */
-    w[i].res  = res;            /* note the result array */
+    w[n].res  = res;            /* note the result array */
     #endif
-    w[i].N    = N;              /* note the number of series, */
-    w[i].T    = T;              /* the length of each serie */
-    w[i].X    = X;              /* and the padded length, */
-    w[i].tile = tile;           /* and the tile size */
-    w[i].s    = i*k;            /* compute and store start index */
-    if (w[i].s >= N/2) break;   /* if beyond half, already done */
-    w[i].e    = w[i].s +k;      /* compute and store end index */
-    if (w[i].e >= N/2) w[i].e = N -w[i].s;
+    w[n].N    = N;              /* note the number of series, */
+    w[n].T    = T;              /* the length of each serie */
+    w[n].X    = X;              /* and the padded length, */
+    w[n].tile = tile;           /* and the tile size */
+    w[n].s    = n*k;            /* compute and store start index */
+    if (w[n].s >= N/2) break;   /* if beyond half, already done */
+    w[n].e    = w[n].s +k;      /* compute and store end index */
+    if (w[n].e >= N/2) w[n].e = N -w[n].s;
     #ifdef _WIN32               /* if Microsoft Windows system */
-    threads[i] = CreateThread(NULL, 0, worker, w+i, 0, &thid);
+    threads[n] = CreateThread(NULL, 0, worker, w+n, 0, &thid);
     if (!threads[i]) { r = -1; break; }
     #else                       /* if Linux/Unix system */
-    if (pthread_create(threads+i, NULL, worker, w+i) != 0) {
+    if (pthread_create(threads+n, NULL, worker, w+n) != 0) {
       r = -1; break; }          /* create a thread for each strip */
     #endif                      /* to compute the strips in parallel */
   }
   #ifdef _WIN32                 /* if Microsoft Windows system */
-  WaitForMultipleObjects(i, threads, TRUE, INFINITE);
-  while (--i >= 0)              /* wait for threads to finish, */
+  WaitForMultipleObjects(n, threads, TRUE, INFINITE);
+  for (i = 0; i < n; i++)       /* wait for threads to finish, */
     CloseHandle(threads[i]);    /* then close all thread handles */
   #else                         /* if Linux/Unix system */
-  while (--i >= 0)              /* wait for threads to finish */
+  for (i = 0; i < n; i++)       /* wait for threads to finish */
     pthread_join(threads[i], NULL);
   #endif                        /* (join threads with this one) */
+
+  #ifdef PCC_BENCH              /* if to do some benchmarking */
+  double min = +INFINITY;       /* initialize minimal start time */
+  double max = -INFINITY;       /* and maximal end time of a thread */
+  double sum, beg, end;         /* to aggregate the lost time */
+  for (i = 0; i < n; i++) {     /* traverse the threads */
+    if (w[i].beg < min) min = w[i].beg;
+    if (w[i].end > max) max = w[i].end;
+  }                             /* find min. start/max. end time */
+  sum = max -min; beg = end = 0;/* find time span for threads */
+  for (i = 0; i < n; i++) {     /* traverse the threads */
+    beg += w[i].beg -min;       /* compute loss at start */
+    end += max -w[i].end;       /* compute loss at end */
+  }                             /* of each thread */
+  fprintf(stderr, "pcc_multi()\n");
+  fprintf(stderr, "time: %10.6f\n", sum);
+  sum = beg +end;               /* print total thread time */
+  fprintf(stderr, "loss: %10.6f (%10.6f)\n", sum, sum/(double)nthd);
+  fprintf(stderr, "beg : %10.6f (%10.6f)\n", beg, beg/(double)nthd);
+  fprintf(stderr, "end : %10.6f (%10.6f)\n", end, end/(double)nthd);
+  #endif                        /* print lost thread time */
 
   free(threads);                /* deallocate thread handles */
   free(w);                      /* deallocate parallelization data */

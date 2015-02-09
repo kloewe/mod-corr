@@ -3,23 +3,23 @@
 # Contents: build pcc and tetracc programs (on Unix systems)
 # Author  : Christian Borgelt
 #-----------------------------------------------------------------------
-SHELL       = /bin/bash
-CPUINFODIR  = ../../cpuinfo/src
+SHELL      = /bin/bash
+CPUINFODIR = ../../cpuinfo/src
 
-CC       = gcc -std=c99 -march=native
-CFBASE   = -Wall -Wextra -Wno-unused-parameter -Wconversion \
-           -pedantic $(ADDFLAGS)
-CFLAGS   = $(CFBASE) -DNDEBUG -O3
-# CFLAGS   = $(CFBASE) -g
-INCS     = -I$(CPUINFODIR)
+CC         = gcc -std=c99 -march=native
+CFBASE     = -Wall -Wextra -Wno-unused-parameter -Wconversion \
+             -pedantic $(ADDFLAGS)
+CFLAGS     = $(CFBASE) -DNDEBUG -O3
+# CFLAGS     = $(CFBASE) -g
+INCS       = -I$(CPUINFODIR)
 
-LD       = gcc
-LDFLAGS  =
-LIBS     = -lm -lrt -lpthread
+LD         = gcc
+LDFLAGS    =
+LIBS       = -lm -lrt -lpthread
 
-HDRS     = binarize.h $(CPUINFODIR)/cpuinfo.h
-OBJS     = binarize.o $(CPUINFODIR)/cpuinfo.o
-PRGS     = ../bin/pcc ../bin/tetracc
+HDRS       = binarize.h $(CPUINFODIR)/cpuinfo.h
+OBJS       = binarize.o $(CPUINFODIR)/cpuinfo.o
+PRGS       = ../bin/pcc ../bin/tetracc
 
 #-----------------------------------------------------------------------
 # Build Programs
@@ -55,6 +55,10 @@ tcc_main.o:   tetracc.c makefile
 pcc.o:      pcc.h $(HDRS)
 pcc.o:      pcc.c makefile
 	$(CC) $(CFLAGS) -funroll-loops $(INCS) -c pcc.c -o $@
+
+pccbnch.o:  pcc.h $(HDRS)
+pccbnch.o:  pcc.c makefile
+	$(CC) $(CFLAGS) -funroll-loops $(INCS) -DPCC_BENCH -c pcc.c -o $@
 
 tetracc.o:  tetracc.h $(HDRS)
 tetracc.o:  tetracc.c makefile

@@ -70,8 +70,8 @@
 #define TCC_M128I       6       /* use 128 bit ints & popcnt64 */
 
 #define TCC_VARIANT  0x0f       /* mask for variant */
-#define TCC_TILED    0x10       /* flag for tiled    version */
-#define TCC_THREAD   0x20       /* flag for threaded version */
+#define TCC_TILED    0x10       /* flag for tiled version */
+#define TCC_THREAD   0x40       /* flag for multi-threaded version */
 #endif
 
 /*----------------------------------------------------------------------

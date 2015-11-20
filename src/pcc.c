@@ -26,6 +26,10 @@
 #include "clamp.h"
 #include "pcc.h"
 
+#if defined(MATLAB_MEX_FILE) && !defined(NDEBUG)
+#include "mex.h"                /* make debug prints appear in Matlab */
+#endif
+
 /*----------------------------------------------------------------------
   Data Type Definition / Recursion Handling
 ----------------------------------------------------------------------*/
@@ -1181,7 +1185,7 @@ static int SFXNAME(pcc_single) (REAL *norm, REAL *res,
 static int SFXNAME(pcc_multi) (REAL *norm, REAL *res,
                                int N, int T, int X,
                                int var, int tile, int nthd)
-{                               /* --- multi-thread version */
+{                               /* --- multi-threaded version */
   int  i, k, n, r = 0;          /* loop variables, error status */
   #if ROWS                      /* if to use an array of row starts */
   REAL **rows;                  /* starts of output rows */
@@ -1292,7 +1296,7 @@ static int SFXNAME(pcc_multi) (REAL *norm, REAL *res,
 int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
 {                               /* --- compute Pearson's corr. coeff. */
   int     r;                    /* buffer, return value */
-  int     tile = 0;             /* size of the tiles */
+  int     tile = 0;             /* tile size */
   int     nthd = proccnt();     /* get the number of processors */
   int     X;                    /* size of padded data arrays */
   REAL    *norm, *mem;          /* normalized data (mean 0, rssd 1) */
@@ -1387,10 +1391,25 @@ int SFXNAME(pccx) (REAL *data, REAL *res, int N, int T, int var, ...)
 
   /* --- compute correlation coefficients --- */
   if (nthd <= 1)                /* if to use only one thread, */
-    var &= ~PCC_THREAD;         /* do not use multi-thread version */
-  if (var & PCC_THREAD)         /* if multi-thread  version */
+    var &= ~PCC_THREAD;         /* do not use multi-threaded version */
+  #ifndef NDEBUG
+  printf("PCC_AVX    (%d): %d\n",
+          PCC_AVX, ((var & PCC_VARIANT) == PCC_AVX) ? 1 : 0);
+  printf("PCC_SSE2   (%d): %d\n",
+          PCC_SSE2, ((var & PCC_VARIANT) == PCC_SSE2) ? 1 : 0);
+  printf("PCC_NAIVE  (%d): %d\n",
+          PCC_NAIVE, ((var & PCC_VARIANT) == PCC_NAIVE) ? 1 : 0);
+  printf("PCC_TILED  (%d): %d\n",
+          PCC_TILED, (var & PCC_TILED) ? 1 : 0);
+  printf("PCC_COBL   (%d): %d\n",
+          PCC_COBL, (var & PCC_COBL) ? 1 : 0);
+  printf("PCC_THREAD (%d): %d\n",
+          PCC_THREAD, (var & PCC_THREAD) ? 1 : 0);
+  printf("tile: %d  nthd: %d\n", tile, nthd);
+  #endif
+  if (var & PCC_THREAD)         /* if multi-threaded  version */
     r = SFXNAME(pcc_multi) (norm, res, N, T, X, var, tile, nthd);
-  else                          /* if single-thread version */
+  else                          /* if single-threaded version */
     r = SFXNAME(pcc_single)(norm, res, N, T, X, var, tile);
 
   free(mem);                    /* deallocate normalized data */

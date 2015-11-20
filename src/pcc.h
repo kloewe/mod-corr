@@ -77,7 +77,7 @@
 #define PCC_VARIANT  0x0f       /* mask for variant */
 #define PCC_TILED    0x10       /* flag for tiled version */
 #define PCC_COBL     0x20       /* flag for cache-oblivious version */
-#define PCC_THREAD   0x40       /* flag for multi-thread version */
+#define PCC_THREAD   0x40       /* flag for multi-threaded version */
 #endif
 
 /*----------------------------------------------------------------------

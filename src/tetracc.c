@@ -1526,9 +1526,10 @@ int SFXNAME(tetraccx) (REAL *data, REAL *res, int N, int T, int var,...)
   return r;                     /* return the error status */
 }  /* tetraccx() */
 
-/*--------------------------------------------------------------------*/
-
-#if _TCC_PASS == 1              /* if if in first of two passes */
+/*----------------------------------------------------------------------
+  Recursion Handling
+----------------------------------------------------------------------*/
+#if _TCC_PASS == 1              /* if in first of two passes */
 #undef REAL
 #undef SUFFIX
 #include "tetracc.c"            /* process header recursively */
@@ -1547,6 +1548,8 @@ int SFXNAME(tetraccx) (REAL *data, REAL *res, int N, int T, int var,...)
 #define REAL    double          /* test case: double precision */
 #define SUFFIX  _dbl            /* function name suffix is '_dbl' */
 #endif
+
+/*--------------------------------------------------------------------*/
 
 static double timer (void)
 {                               /* --- get current time */

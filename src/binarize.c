@@ -144,7 +144,7 @@ void* SFXNAME(binarize) (REAL *data, int N, int T, REAL *thhs, int bpi)
       else t = thhs[i];         /* get threshold for binarization */
       for (k = 0; k < T; k++)   /* set bits for all values */
         if (data[i*T+k] >= t)   /* at least as large as the threshold */
-          u16[i*X+(k >> 4)] |= (uint16_t)(1 << (k & 15));
+          u16[i*X+(k >> 4)] = (uint16_t)(u16[i*X+(k >> 4)] | (1 << (k & 15)));
     } }
   else {                        /* if 32 bits per integer (default) */
     uint32_t *u32;              /* compute binarized array size and */

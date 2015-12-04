@@ -17,14 +17,20 @@ LD         = gcc
 LDFLAGS    =
 LIBS       = -lm -lrt -lpthread
 
+OUTDIR     = ../bin
 HDRS       = binarize.h $(CPUINFODIR)/cpuinfo.h
 OBJS       = binarize.o $(CPUINFODIR)/cpuinfo.o
-PRGS       = ../bin/pcc ../bin/tetracc
+PRGS       = $(OUTDIR)/pcc $(OUTDIR)/tetracc
 
 #-----------------------------------------------------------------------
 # Build Programs
 #-----------------------------------------------------------------------
-all:        $(PRGS)
+all: $(PRGS)
+
+$(PRGS): | $(OUTDIR)
+
+$(OUTDIR):
+	mkdir -p $(OUTDIR)
 
 pcc:        ../bin/pcc
 	echo ""

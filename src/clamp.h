@@ -3,7 +3,7 @@
   Contents: clamp values to the interval [min,max]
   Author  : Kristian Loewe, Christian Borgelt
 ----------------------------------------------------------------------*/
-#ifndef __CLAMP__
+#ifndef CLAMP_H
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -121,5 +121,6 @@ inline REAL SFXNAME(clamp4) (REAL val, REAL minval, REAL maxval)
 #undef REAL_IS_DOUBLE
 
 #undef  _CLAMP_PASS
-#define __CLAMP__
-#endif
+
+#define CLAMP_H
+#endif  /* #ifndef CLAMP_H */

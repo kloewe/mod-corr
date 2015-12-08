@@ -3,7 +3,7 @@
   Contents: compute pairwise Pearson correlation coefficients
   Author  : Kristian Loewe, Christian Borgelt
 ----------------------------------------------------------------------*/
-#ifndef __PEARSONCC__
+#ifndef PCC_H
 
 #ifdef _MSC_VER
 #define uint32_t   unsigned __int32
@@ -202,5 +202,6 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
 #undef REAL_IS_DOUBLE
 
 #undef  _PCC_PASS
-#define __PEARSONCC__
-#endif
+
+#define PCC_H
+#endif  /* #ifndef PCC_H */

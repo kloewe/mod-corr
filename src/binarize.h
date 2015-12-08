@@ -3,8 +3,8 @@
   Contents: functions to binarize real-valued series
   Author  : Kristian Loewe, Christian Borgelt
 ----------------------------------------------------------------------*/
-#ifndef __BINARIZE__
-#define __BINARIZE__
+#ifndef BINARIZE_H
+#define BINARIZE_H
 #include <stddef.h>
 
 /*----------------------------------------------------------------------
@@ -26,4 +26,4 @@ extern void* binarize_dbl (double *data, int N, int T,
                            double *thhs, int bpi);
 #endif
 
-#endif  /* #ifndef __BINARIZE__ */
+#endif  /* #ifndef BINARIZE_H */

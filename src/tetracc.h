@@ -3,7 +3,7 @@
   Contents: compute pairwise tetrachoric correlation coefficients
   Author  : Kristian Loewe, Christian Borgelt
 ----------------------------------------------------------------------*/
-#ifndef __TETRACC__
+#ifndef TETRACC_H
 
 #ifdef _MSC_VER
 #define uint32_t   unsigned __int32
@@ -153,5 +153,6 @@ inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
 #undef SFXNAME_2
 
 #undef  _TCC_PASS
-#define __TETRACC__
-#endif
+
+#define TETRACC_H
+#endif  /* #ifndef TETRACC_H */

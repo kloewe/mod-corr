@@ -15,7 +15,7 @@
 #endif
 
 /*----------------------------------------------------------------------
-  Preprocessor Definitions for Data Type / Recursion Handling
+  Data Type Definition / Recursion Handling
 ----------------------------------------------------------------------*/
 #ifdef REAL                     /* if REAL is defined, */
 #  undef  _CLAMP_PASS           /* ensure _CLAMP_PASS is undefined */
@@ -39,7 +39,7 @@
 #define float  1                /* to check the definition of REAL */
 #define double 2
 
-#if REAL==float                 /* if single precision data */
+#if   REAL==float               /* if single precision data */
 #undef  REAL_IS_DOUBLE
 #define REAL_IS_DOUBLE  0       /* clear indicator for double */
 #elif REAL==double              /* if double precision data */
@@ -58,6 +58,13 @@
 #define SFXNAME_1(n,s)  SFXNAME_2(n,s)
 #define SFXNAME_2(n,s)  n##s    /* the two step recursion is needed */
 #endif                          /* to ensure proper expansion */
+
+/*----------------------------------------------------------------------
+  Preprocessor Definitions
+----------------------------------------------------------------------*/
+#ifndef clamp
+#define clamp clamp1            /* def. default clamp implementation */
+#endif
 
 /*----------------------------------------------------------------------
   Inline Functions

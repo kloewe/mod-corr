@@ -84,7 +84,6 @@
                                 /* default: index computation */
 #define USERTHD     0           /* copy user flag for threading */
                                 /* default: choose automatically */
-#define clamp       clamp1      /* choose clamping implementation */
 
 /*----------------------------------------------------------------------
   Preprocessor Definitions

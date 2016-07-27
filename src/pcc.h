@@ -20,6 +20,8 @@
 #include <immintrin.h>
 #endif
 
+#include "clamp.h"
+
 /*----------------------------------------------------------------------
   Data Type Definition / Recursion Handling
 ----------------------------------------------------------------------*/
@@ -116,7 +118,7 @@ inline REAL SFXNAME(pair_naive) (REAL *a, REAL *b, int n)
 
   for (k = 0; k < n; k++)       /* traverse the vector elements */
     sum += a[k] *b[k];          /* and sum the pairwise products */
-  return sum;                   /* return the computed sum */
+  return SFXNAME(clamp)(sum, (REAL)-1, (REAL)+1);
 }  /* pair_naive() */
 
 /*--------------------------------------------------------------------*/
@@ -130,16 +132,16 @@ inline REAL SFXNAME(pair_sse2) (REAL *a, REAL *b, int n)
   s = _mm_setzero_pd();         /* initialize the sum (2 values) */
   for (k = 0; k < n; k += 2)    /* sum two products in parallel */
     s = _mm_add_pd(s, _mm_mul_pd(_mm_load_pd(a+k), _mm_load_pd(b+k)));
-  s = _mm_add_pd(s, _mm_shuffle_pd(s, s, 1));
-  return _mm_cvtsd_f64(s);      /* sum two sums horizontally */
+  s = _mm_add_pd(s, _mm_shuffle_pd(s, s, 1)); /* sum two sums horizontally */
+  return SFXNAME(clamp)(_mm_cvtsd_f64(s), (REAL)-1, (REAL)+1);
   #else                         /* data is single precision */
   __m128  s;                    /* register for SSE2 computations */
   s = _mm_setzero_ps();         /* initialize the sum (4 values) */
   for (k = 0; k < n; k += 4)    /* sum four products in parallel */
     s = _mm_add_ps(s, _mm_mul_ps(_mm_load_ps(a+k), _mm_load_ps(b+k)));
   s = _mm_add_ps(s, _mm_movehl_ps(s, s));
-  s = _mm_add_ss(s, _mm_shuffle_ps(s, s, 1));
-  return _mm_cvtss_f32(s);      /* sum four sums horizontally */
+  s = _mm_add_ss(s, _mm_shuffle_ps(s, s, 1)); /* sum four sums horizontally */
+  return SFXNAME(clamp)(_mm_cvtss_f32(s), (REAL)-1, (REAL)+1);
   #endif
 }  /* pair_sse2() */
 
@@ -159,8 +161,8 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
                                        _mm256_load_pd(b+k)));
   x = _mm_add_pd(_mm256_extractf128_pd(s, 0),
                  _mm256_extractf128_pd(s, 1));
-  x = _mm_add_pd(x, _mm_shuffle_pd(x, x, 1));
-  return _mm_cvtsd_f64(x);      /* sum four sums horizontally */
+  x = _mm_add_pd(x, _mm_shuffle_pd(x, x, 1)); /* sum four sums horizontally */
+  return SFXNAME(clamp)(_mm_cvtsd_f64(x), (REAL)-1, (REAL)+1);
   #else                         /* data is single precision */
   __m256  s;                    /* register for AVX  computations */
   __m128  x;                    /* register for SSE2 computations */
@@ -178,8 +180,8 @@ inline REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n)
   s = _mm256_hadd_ps(s, s);     /* and lower half of the register */
   x = _mm_add_ss(_mm256_castps256_ps128(s),
                  _mm256_extractf128_ps(s, 1));
-  #endif
-  return _mm_cvtss_f32(x);      /* sum eight sums horizontally */
+  #endif                        /* sum eight sums horizontally */
+  return SFXNAME(clamp)(_mm_cvtss_f32(x), (REAL)-1, (REAL)+1);
   #endif
 }  /* pair_avx() */
 

@@ -28,8 +28,8 @@ all: pcc_flt.o tetracc_flt.o binarize_flt.o \
 pcc_flt.o:                 $(OBJDIR)/pcc_flt.o
 $(OBJDIR)/pcc_flt.o:       pcc.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/pcc_flt.o:       pcc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS) \
-     -funroll-loops' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS) -funroll-loops' \
     -DNDEBUG -DREAL=float \
     -I$(CPUINFODIR)/src \
     -c pcc.c -outdir $(OBJDIR); \
@@ -38,7 +38,8 @@ $(OBJDIR)/pcc_flt.o:       pcc.c makefile-mex
 tetracc_flt.o:             $(OBJDIR)/tetracc_flt.o
 $(OBJDIR)/tetracc_flt.o:   tetracc.h binarize.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/tetracc_flt.o:   tetracc.c
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS)' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS)' \
     -DNDEBUG -DREAL=float \
     -I$(CPUINFODIR)/src \
     -c tetracc.c -outdir $(OBJDIR); \
@@ -47,7 +48,8 @@ $(OBJDIR)/tetracc_flt.o:   tetracc.c
 binarize_flt.o:            $(OBJDIR)/binarize_flt.o
 $(OBJDIR)/binarize_flt.o:  binarize.h
 $(OBJDIR)/binarize_flt.o:  binarize.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS)' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS)' \
     -DNDEBUG -DREAL=float \
     -c binarize.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/binarize.o $(OBJDIR)/binarize_flt.o
@@ -55,8 +57,8 @@ $(OBJDIR)/binarize_flt.o:  binarize.c makefile-mex
 pcc_dbl.o:                 $(OBJDIR)/pcc_dbl.o
 $(OBJDIR)/pcc_dbl.o:       pcc.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/pcc_dbl.o:       pcc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS) \
-    -funroll-loops' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS) -funroll-loops' \
     -DNDEBUG -DREAL=double \
     -I$(CPUINFODIR)/src \
     -c pcc.c -outdir $(OBJDIR); \
@@ -65,7 +67,8 @@ $(OBJDIR)/pcc_dbl.o:       pcc.c makefile-mex
 tetracc_dbl.o:             $(OBJDIR)/tetracc_dbl.o
 $(OBJDIR)/tetracc_dbl.o:   tetracc.h binarize.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/tetracc_dbl.o:   tetracc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS)' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS)' \
     -DNDEBUG -DREAL=double \
     -I$(CPUINFODIR)/src \
     -c tetracc.c -outdir $(OBJDIR); \
@@ -74,7 +77,8 @@ $(OBJDIR)/tetracc_dbl.o:   tetracc.c makefile-mex
 binarize_dbl.o:            $(OBJDIR)/binarize_dbl.o
 $(OBJDIR)/binarize_dbl.o:  binarize.h
 $(OBJDIR)/binarize_dbl.o:  binarize.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' COPTIMFLAGS='$(COPTIMFLAGS)' \
+	$(MEXCC) CFLAGS='$(CFLAGS)' \
+    COPTIMFLAGS='$(COPTIMFLAGS)' \
     -DNDEBUG -DREAL=double \
     -c binarize.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/binarize.o $(OBJDIR)/binarize_dbl.o

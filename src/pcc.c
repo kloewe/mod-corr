@@ -26,7 +26,7 @@
 #include "clamp.h"
 #include "pcc.h"
 
-#if defined(MATLAB_MEX_FILE) && !defined(NDEBUG)
+#if (defined(MATLAB_MEX_FILE) || defined(OCTAVE)) && !defined(NDEBUG)
 #include "mex.h"                /* make debug prints appear in Matlab */
 #endif
 

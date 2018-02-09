@@ -2,83 +2,91 @@
 # File    : makefile-mex
 # Contents: build objects for use with matlab/mex
 # Author  : Kristian Loewe
+#
+# Usage   : make -f makefile-mex
+#           MEX_FLAGS='-v' make -f makefile-mex
+#           make -f makefile-mex | grep -v 'Warning.*gcc version'
+#           make -B -f makefile-mex | grep -v 'Warning.*gcc version'
+#           DEBUG=1 make -B -f makefile-mex | grep -v 'Warning.*gcc version'
 #-----------------------------------------------------------------------------
-.SUFFIXES:                                   # remove built-in rules
-MAKEFLAGS    += -r
+.SUFFIXES:
+MAKEFLAGS   += -r
 
-CPUINFODIR  = ../../cpuinfo
+CC          ?= gcc
+CFBASE       = -std=c99 -Wall -Wextra -Wno-unused-parameter -Wconversion \
+               -Wshadow -pedantic
+DEFS        ?=
+MEX_FLAGS   ?=
 
-CFLAGS      = -std=c99 -march=native \
-              -Wall -Wextra -Wno-unused-parameter -Wconversion -Wshadow \
-              -pedantic -fPIC
-COPTIMFLAGS = -O3
+DEBUG       ?= 0
+ifeq ($(DEBUG), 1)
+  CFBASE    += -g
+  CFOPT     ?= -O0 -march=native
+else
+  CFOPT     ?= -O2 -march=native
+  DEFS      += -DNDEBUG
+endif
+CFLAGS       = $(CFBASE) -fPIC $(DEFS)
 
-MATLABROOT  = $(dir $(realpath $(shell which matlab)))
-MEXCC       = $(realpath $(MATLABROOT))/mex -largeArrayDims
+MATLABROOT   = $(dir $(realpath $(shell which matlab)))
+MEXCC        = $(realpath $(MATLABROOT))/mex -largeArrayDims $(MEX_FLAGS) \
+               CFLAGS='$(CFLAGS)'
 
-OBJDIR      = ../obj/$(shell uname -m)/matlab
-_DUMMY      := $(shell mkdir -p $(OBJDIR); mkdir -p $(OBJDIR))
+OBJDIR       = ../obj/$(shell uname -m)/matlab
+_DUMMY      := $(shell mkdir -p $(OBJDIR))
+
+#-----------------------------------------------------------------------------
+
+CPUINFODIR   = ../../cpuinfo
+
+INCS         = -I$(CPUINFODIR)/src
+
+OBJS         = pcc_flt.o tetracc_flt.o binarize_flt.o \
+               pcc_dbl.o tetracc_dbl.o binarize_dbl.o
 
 #-----------------------------------------------------------------------------
 # Build Objects
 #-----------------------------------------------------------------------------
-all: pcc_flt.o tetracc_flt.o binarize_flt.o \
-     pcc_dbl.o tetracc_dbl.o binarize_dbl.o
+all:  $(OBJS)
 
 pcc_flt.o:                 $(OBJDIR)/pcc_flt.o
 $(OBJDIR)/pcc_flt.o:       pcc.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/pcc_flt.o:       pcc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS) -funroll-loops' \
-    -DNDEBUG -DREAL=float \
-    -I$(CPUINFODIR)/src \
-    -c pcc.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT) -funroll-loops' \
+    -DREAL=float $(INCS) -c pcc.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/pcc.o $(OBJDIR)/pcc_flt.o
 
 tetracc_flt.o:             $(OBJDIR)/tetracc_flt.o
 $(OBJDIR)/tetracc_flt.o:   tetracc.h binarize.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/tetracc_flt.o:   tetracc.c
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS)' \
-    -DNDEBUG -DREAL=float \
-    -I$(CPUINFODIR)/src \
-    -c tetracc.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT)' \
+    -DREAL=float $(INCS) -c tetracc.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/tetracc.o $(OBJDIR)/tetracc_flt.o
 
 binarize_flt.o:            $(OBJDIR)/binarize_flt.o
 $(OBJDIR)/binarize_flt.o:  binarize.h
 $(OBJDIR)/binarize_flt.o:  binarize.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS)' \
-    -DNDEBUG -DREAL=float \
-    -c binarize.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT)' \
+    -DREAL=float -c binarize.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/binarize.o $(OBJDIR)/binarize_flt.o
-
+#-----------------------------------------------------------------------------
 pcc_dbl.o:                 $(OBJDIR)/pcc_dbl.o
 $(OBJDIR)/pcc_dbl.o:       pcc.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/pcc_dbl.o:       pcc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS) -funroll-loops' \
-    -DNDEBUG -DREAL=double \
-    -I$(CPUINFODIR)/src \
-    -c pcc.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT) -funroll-loops' \
+    -DREAL=double $(INCS) -c pcc.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/pcc.o $(OBJDIR)/pcc_dbl.o
 
 tetracc_dbl.o:             $(OBJDIR)/tetracc_dbl.o
 $(OBJDIR)/tetracc_dbl.o:   tetracc.h binarize.h $(CPUINFODIR)/src/cpuinfo.h
 $(OBJDIR)/tetracc_dbl.o:   tetracc.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS)' \
-    -DNDEBUG -DREAL=double \
-    -I$(CPUINFODIR)/src \
-    -c tetracc.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT)' \
+    -DREAL=double $(INCS) -c tetracc.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/tetracc.o $(OBJDIR)/tetracc_dbl.o
 
 binarize_dbl.o:            $(OBJDIR)/binarize_dbl.o
 $(OBJDIR)/binarize_dbl.o:  binarize.h
 $(OBJDIR)/binarize_dbl.o:  binarize.c makefile-mex
-	$(MEXCC) CFLAGS='$(CFLAGS)' \
-    COPTIMFLAGS='$(COPTIMFLAGS)' \
-    -DNDEBUG -DREAL=double \
-    -c binarize.c -outdir $(OBJDIR); \
+	$(MEXCC) COPTIMFLAGS='$(CFOPT)' \
+    -DREAL=double -c binarize.c -outdir $(OBJDIR); \
   mv $(OBJDIR)/binarize.o $(OBJDIR)/binarize_dbl.o

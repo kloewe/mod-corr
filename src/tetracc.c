@@ -133,6 +133,14 @@
 #endif
 
 /*----------------------------------------------------------------------
+  Function Prototypes
+----------------------------------------------------------------------*/
+extern int pcand_lut16 (uint32_t *a, uint32_t *b, int n);
+#if defined __POPCNT__ && defined __SSE4_1__
+extern int pcand_m128i (uint32_t *a, uint32_t *b, int n);
+#endif
+
+/*----------------------------------------------------------------------
   Type Definitions
 ----------------------------------------------------------------------*/
 typedef struct {                /* --- thread worker data --- */

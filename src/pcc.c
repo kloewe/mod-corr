@@ -136,6 +136,18 @@
 #endif
 
 /*----------------------------------------------------------------------
+  Function Prototypes
+----------------------------------------------------------------------*/
+extern REAL SFXNAME(clamp) (REAL r, REAL minval, REAL maxval);
+extern REAL SFXNAME(pair_naive) (REAL *a, REAL *b, int n);
+#ifdef __SSE2__
+extern REAL SFXNAME(pair_sse2) (REAL *a, REAL *b, int n);
+#endif
+#ifdef __AVX__
+extern REAL SFXNAME(pair_avx) (REAL *a, REAL *b, int n);
+#endif
+
+/*----------------------------------------------------------------------
   Type Definitions
 ----------------------------------------------------------------------*/
 typedef struct {                /* --- thread worker data --- */

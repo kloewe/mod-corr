@@ -125,6 +125,7 @@ inline int pcand_m128i (uint32_t *a, uint32_t *b, int n)
   int k;                        /* loop variable */
   int s = 0;                    /* sum of population counts */
 
+  assert(a && b && (n > 0));    /* check the function arguments */
   for (k = 0; k < n; k += 4) {  /* traverse the binarized data */
     __m128i x = _mm_and_si128(_mm_load_si128((__m128i*)(a+k)),
                               _mm_load_si128((__m128i*)(b+k)));

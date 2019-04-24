@@ -4,22 +4,22 @@
 # Author  : Christian Borgelt
 #-----------------------------------------------------------------------
 SHELL      = /bin/bash
-CPUINFODIR = ../../cpuinfo/src
+CPUINFODIR = ../../cpuinfo
 
 CC         = gcc -std=c99 -march=native
 CFBASE     = -Wall -Wextra -Wno-unused-parameter -Wconversion \
              -pedantic $(ADDFLAGS)
 CFLAGS     = $(CFBASE) -DNDEBUG -O3
 # CFLAGS     = $(CFBASE) -g
-INCS       = -I$(CPUINFODIR)
+INCS       = -I$(CPUINFODIR)/src
 
 LD         = gcc
 LDFLAGS    =
 LIBS       = -lm -lrt -lpthread
 
 OUTDIR     = ../bin
-HDRS       = binarize.h $(CPUINFODIR)/cpuinfo.h
-OBJS       = binarize.o $(CPUINFODIR)/cpuinfo.o
+HDRS       = binarize.h $(CPUINFODIR)/src/cpuinfo.h
+OBJS       = binarize.o $(CPUINFODIR)/obj/cpuinfo.o
 PRGS       = $(OUTDIR)/pcc $(OUTDIR)/tetracc
 
 #-----------------------------------------------------------------------
@@ -80,8 +80,8 @@ binarize.o: binarize.c makefile
 #-----------------------------------------------------------------------
 # External Modules
 #-----------------------------------------------------------------------
-$(CPUINFODIR)/cpuinfo.o:
-	cd $(CPUINFODIR); $(MAKE) cpuinfo.o
+$(CPUINFODIR)/obj/cpuinfo.o:
+	cd $(CPUINFODIR)/src; $(MAKE) cpuinfo.o
 
 #-----------------------------------------------------------------------
 # Source Distribution Packages
@@ -106,4 +106,4 @@ localclean:
 
 clean:
 	$(MAKE) localclean
-	cd $(CPUINFODIR); $(MAKE) clean
+	cd $(CPUINFODIR)/src; $(MAKE) clean
